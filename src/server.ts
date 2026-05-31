@@ -11,6 +11,7 @@ import { registerAuthRoutes } from './routes/auth.routes';
 import { registerSocket } from './sockets/socket';
 import adminRoutes from './routes/admin.routes';
 import { registerRideRoutes } from './routes/ride.routes';
+import {registerLoginRoutes } from './routes/login.routes';
 
 import adminAuthRoutes from './routes/admin.auth.routes';
 
@@ -38,6 +39,8 @@ const PORT = Number(
 );
 
 registerAdminPanelRoutes(app);
+
+registerLoginRoutes(app);
 
 registerRootRoutes(app);
 
