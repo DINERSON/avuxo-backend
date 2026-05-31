@@ -274,6 +274,7 @@ export function registerAdminPanelRoutes(app: Express) {
     <div class="sub">COMMAND CENTER</div>
 
     <nav>
+      <button onclick="logoutAdmin()"> Logout </button>
       <button class="active" onclick="openSection('dashboard', this)">Dashboard</button>
       <button onclick="openSection('drivers', this)">Motoristas</button>
       <button onclick="openSection('rides', this)">Corridas</button>
@@ -448,6 +449,16 @@ export function registerAdminPanelRoutes(app: Express) {
 <script>
 let currentDriverId = null;
 
+const adminToken =
+  localStorage.getItem(
+    'avuxo_admin_token'
+  );
+
+if (!adminToken) {
+  window.location.href =
+    '/login';
+}
+
 const socket = io();
 
 socket.emit('admin:join');
@@ -534,7 +545,13 @@ function openSection(sectionId, button) {
 }
 
 async function loadDrivers() {
-  const response = await fetch('/admin/drivers');
+  const response =
+  await fetch('/admin/drivers', {
+    headers: {
+      Authorization:
+        'Bearer ' + adminToken,
+    },
+  });
   const data = await response.json();
   const drivers = data.drivers || [];
 
@@ -629,7 +646,19 @@ function closeZoom() {
 
 async function approveDriver() {
   if (!currentDriverId) return;
-  await fetch('/admin/drivers/' + currentDriverId + '/approve', { method: 'POST' });
+ await fetch(
+  '/admin/drivers/' +
+    currentDriverId +
+    '/approve',
+  {
+    method:'POST',
+    headers:{
+      Authorization:
+        'Bearer ' +
+        adminToken,
+    },
+  }
+);
   closeModal();
   loadDrivers();
 }
@@ -637,7 +666,27 @@ async function approveDriver() {
 async function blockDriver() {
   if (!currentDriverId) return;
 
-  await fetch('/admin/drivers/' + currentDriverId + '/block', {
+ await fetch(
+  '/admin/drivers/' +
+    currentDriverId +
+    '/block',
+  {
+    method:'POST',
+    headers:{
+      'Content-Type':
+        'application/json',
+
+      Authorization:
+        'Bearer ' +
+        adminToken,
+    },
+
+    body:JSON.stringify({
+      reason:
+        'Bloqueado pelo admin',
+    }),
+  }
+); {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ reason: 'Bloqueado pelo admin' }),
@@ -649,7 +698,19 @@ async function blockDriver() {
 
 async function rejectDriver() {
   if (!currentDriverId) return;
-  await fetch('/admin/drivers/' + currentDriverId + '/reject', { method: 'POST' });
+ await fetch(
+  '/admin/drivers/' +
+    currentDriverId +
+    '/reject',
+  {
+    method:'POST',
+    headers:{
+      Authorization:
+        'Bearer ' +
+        adminToken,
+    },
+  }
+);
   closeModal();
   loadDrivers();
 }
@@ -679,6 +740,16 @@ async function loadCurrentRide() {
       '</tr>';
   }
 }
+ 
+function logoutAdmin() {
+
+  localStorage.removeItem(
+    'avuxo_admin_token'
+  );
+
+  window.location.href =
+    '/login';
+} 
 
 loadDrivers();
 loadCurrentRide();
