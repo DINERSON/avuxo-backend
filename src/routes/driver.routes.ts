@@ -66,6 +66,23 @@ export function registerDriverRoutes(app: Express) {
   });
 
   app.post('/drivers/status', (req, res) => {
+const phone = String(req.body.phone || '').replace(/\D/g, '');
+const plate = String(req.body.carPlate || req.body.plate || '').toUpperCase().trim();
+
+const alreadyExists = memoryStore.driversDatabase.find((item) => {
+  const itemPhone = String(item.phone || '').replace(/\D/g, '');
+  const itemPlate = String(item.carPlate || '').toUpperCase().trim();
+
+  return itemPhone === phone || itemPlate === plate;
+});
+
+if (alreadyExists) {
+  return res.status(409).json({
+    success: false,
+    message: 'Motorista já cadastrado com este telefone ou placa.',
+    driver: alreadyExists,
+  });
+}
     const id = Number(req.body.id || req.body.driverId);
     const online = Boolean(req.body.online);
 
