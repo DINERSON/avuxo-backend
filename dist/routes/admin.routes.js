@@ -1,0 +1,12 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const admin_controller_1 = require("../controllers/admin.controller");
+const adminRoutes = (0, express_1.Router)();
+adminRoutes.get('/drivers', admin_controller_1.listAllDrivers);
+adminRoutes.get('/drivers/pending', admin_controller_1.listPendingDrivers);
+adminRoutes.post('/drivers/:id/approve', admin_controller_1.approveDriver);
+adminRoutes.post('/drivers/:id/reject', admin_controller_1.rejectDriver);
+adminRoutes.post('/drivers/:id/block', admin_controller_1.blockDriver);
+adminRoutes.post('/drivers/:id/unblock', admin_controller_1.unblockDriver);
+exports.default = adminRoutes;
