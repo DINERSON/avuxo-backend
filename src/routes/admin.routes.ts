@@ -9,18 +9,42 @@ import {
   unblockDriver,
 } from '../controllers/admin.controller';
 
+import {
+  adminAuth,
+} from '../middleware/adminAuth';
+
 const adminRoutes = Router();
 
-adminRoutes.get('/drivers', listAllDrivers);
+adminRoutes.use(adminAuth);
 
-adminRoutes.get('/drivers/pending', listPendingDrivers);
+adminRoutes.get(
+  '/drivers',
+  listAllDrivers,
+);
 
-adminRoutes.post('/drivers/:id/approve', approveDriver);
+adminRoutes.get(
+  '/drivers/pending',
+  listPendingDrivers,
+);
 
-adminRoutes.post('/drivers/:id/reject', rejectDriver);
+adminRoutes.post(
+  '/drivers/:id/approve',
+  approveDriver,
+);
 
-adminRoutes.post('/drivers/:id/block', blockDriver);
+adminRoutes.post(
+  '/drivers/:id/reject',
+  rejectDriver,
+);
 
-adminRoutes.post('/drivers/:id/unblock', unblockDriver);
+adminRoutes.post(
+  '/drivers/:id/block',
+  blockDriver,
+);
+
+adminRoutes.post(
+  '/drivers/:id/unblock',
+  unblockDriver,
+);
 
 export default adminRoutes;

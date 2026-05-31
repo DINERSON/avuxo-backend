@@ -12,6 +12,8 @@ import { registerSocket } from './sockets/socket';
 import adminRoutes from './routes/admin.routes';
 import { registerRideRoutes } from './routes/ride.routes';
 
+import adminAuthRoutes from './routes/admin.auth.routes';
+
 const app = express();
 
 const httpServer = createServer(app);
@@ -31,25 +33,54 @@ app.use(
   }),
 );
 
-const PORT = Number(process.env.PORT || 3000);
+const PORT = Number(
+  process.env.PORT || 3000,
+);
 
 registerAdminPanelRoutes(app);
+
 registerRootRoutes(app);
+
 registerHealthRoutes(app);
+
 registerAuthRoutes(app);
+
 registerDriverRoutes(app);
+
 registerRideRoutes(app, io);
 
-app.use('/admin', adminRoutes);
+app.use(
+  '/admin-auth',
+  adminAuthRoutes,
+);
+
+app.use(
+  '/admin',
+  adminRoutes,
+);
 
 registerSocket(io);
 
-httpServer.listen(PORT, '0.0.0.0', () => {
-  console.log('');
-  console.log('====================================');
-  console.log('🚀 AVUXO BACKEND ONLINE');
-  console.log(`🌐 Local: http://localhost:${PORT}`);
-  console.log(`📡 Porta: ${PORT}`);
-  console.log('====================================');
-  console.log('');
-});
+httpServer.listen(
+  PORT,
+  '0.0.0.0',
+  () => {
+    console.log('');
+    console.log(
+      '====================================',
+    );
+    console.log(
+      '🚀 AVUXO BACKEND ONLINE',
+    );
+    console.log(
+      `🌐 Local: http://localhost:${PORT}`,
+    );
+    console.log(
+      `📡 Porta: ${PORT}`,
+    );
+    console.log(
+      '====================================',
+    );
+    console.log('');
+  },
+);

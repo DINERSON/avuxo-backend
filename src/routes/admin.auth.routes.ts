@@ -4,27 +4,27 @@ import {
   adminLogin,
   adminLogout,
   adminMe,
-} from '..controllersadmin.auth.controller';
+} from '../controllers/admin.auth.controller';
 
 import {
   adminAuth,
-} from '..middlewareadminAuth';
+} from '../middleware/adminAuth';
 
 const adminAuthRoutes = Router();
 
 adminAuthRoutes.post(
-  'login',
+  '/login',
   adminLogin,
 );
 
 adminAuthRoutes.get(
-  'me',
+  '/me',
   adminAuth,
   adminMe,
 );
 
 adminAuthRoutes.post(
-  'logout',
+  '/logout',
   adminAuth,
   adminLogout,
 );

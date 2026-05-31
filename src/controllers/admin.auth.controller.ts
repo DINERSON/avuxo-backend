@@ -5,15 +5,13 @@ export function adminLogin(
   req: Request,
   res: Response,
 ) {
-  const { username, password } =
-    req.body;
+  const { username, password } = req.body;
 
   const adminUser =
     process.env.ADMIN_USER || 'admin';
 
   const adminPassword =
-    process.env.ADMIN_PASSWORD ||
-    'Avuxo@2026';
+    process.env.ADMIN_PASSWORD || 'Avuxo@2026';
 
   if (
     username !== adminUser ||
@@ -30,13 +28,13 @@ export function adminLogin(
       username,
       role: 'admin',
     },
-    process.env.JWT_SECRET ||
+    String(
+      process.env.JWT_SECRET ||
       'avuxo-secret',
+    ),
     {
-      expiresIn:
-        process.env.JWT_EXPIRES_IN ||
-        '7d',
-    },
+      expiresIn: '7d',
+    } as jwt.SignOptions,
   );
 
   return res.json({
@@ -49,7 +47,7 @@ export function adminLogin(
 }
 
 export function adminMe(
-  req: Request,
+  _req: Request,
   res: Response,
 ) {
   return res.json({
