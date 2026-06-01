@@ -22,9 +22,7 @@ export function registerDriverRoutes(app: Express) {
   app.post('/drivers/register', (req, res) => {
     const phone = normalizePhone(req.body.phone);
 
-    const plate = normalizePlate(
-      req.body.carPlate || req.body.plate,
-    );
+    const plate = normalizePlate(req.body.carPlate || req.body.plate);
 
     const alreadyExists = memoryStore.driversDatabase.find((item) => {
       const itemPhone = normalizePhone(item.phone);
@@ -81,6 +79,9 @@ export function registerDriverRoutes(app: Express) {
 
       approved: false,
       online: false,
+       
+      rating: 0,
+totalRatings: 0,
 
       blocked: false,
       blockedReason: '',
@@ -121,36 +122,71 @@ export function registerDriverRoutes(app: Express) {
       blocked: driver.blocked === true,
       blockedReason: driver.blockedReason || '',
       status: driver.status,
-     driver: {
-  id: driver.id,
+      driver: {
+        id: driver.id,
 
-  fullName: driver.fullName,
-  email: driver.email,
-  phone: driver.phone,
+        fullName: driver.fullName,
+        email: driver.email,
+        phone: driver.phone,
 
-  carBrand: driver.carBrand,
-  carModel: driver.carModel,
-  carPlate: driver.carPlate,
-  carColor: driver.carColor,
-  carYear: driver.carYear,
-  carSeats: driver.carSeats,
+        rating: driver.rating || 0,
+totalRatings: driver.totalRatings || 0,
 
-  renavam: driver.renavam,
+        carBrand: driver.carBrand,
+        carModel: driver.carModel,
+        carPlate: driver.carPlate,
+        carColor: driver.carColor,
+        carYear: driver.carYear,
+        carSeats: driver.carSeats,
 
-  driverPhoto: driver.driverPhoto,
-  vehiclePhoto: driver.vehiclePhoto,
-  documentPhoto: driver.documentPhoto,
+        renavam: driver.renavam,
 
-  licensePhoto: driver.licensePhoto,
-  cnhFrontPhoto: driver.cnhFrontPhoto,
-  cnhBackPhoto: driver.cnhBackPhoto,
+        driverPhoto: driver.driverPhoto,
+        vehiclePhoto: driver.vehiclePhoto,
+        documentPhoto: driver.documentPhoto,
 
-  vehicleDocumentPhoto: driver.vehicleDocumentPhoto,
-  vehicleDocumentPdf: driver.vehicleDocumentPdf,
+        licensePhoto: driver.licensePhoto,
+        cnhFrontPhoto: driver.cnhFrontPhoto,
+        cnhBackPhoto: driver.cnhBackPhoto,
 
-  vehicleSidePhoto: driver.vehicleSidePhoto,
-  vehicleBackPhoto: driver.vehicleBackPhoto,
-},
+        vehicleDocumentPhoto: driver.vehicleDocumentPhoto,
+        vehicleDocumentPdf: driver.vehicleDocumentPdf,
+
+        vehicleSidePhoto: driver.vehicleSidePhoto,
+        vehicleBackPhoto: driver.vehicleBackPhoto,
+      },
+    });
+  });
+
+  app.post('/drivers/:id/photo', (req, res) => {
+    const id = Number(req.params.id);
+    const driverPhoto = String(req.body.driverPhoto || '').trim();
+
+    const driver = memoryStore.driversDatabase.find(
+      (item) => Number(item.id) === id,
+    );
+
+    if (!driver) {
+      return res.status(404).json({
+        success: false,
+        message: 'Motorista não encontrado',
+      });
+    }
+
+    if (!driverPhoto) {
+      return res.status(400).json({
+        success: false,
+        message: 'Foto do motorista não enviada.',
+      });
+    }
+
+    driver.driverPhoto = driverPhoto;
+
+    return res.json({
+      success: true,
+      message: 'Foto atualizada com sucesso.',
+      driverPhoto: driver.driverPhoto,
+      driver,
     });
   });
 
