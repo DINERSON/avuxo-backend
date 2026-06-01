@@ -121,11 +121,36 @@ export function registerDriverRoutes(app: Express) {
       blocked: driver.blocked === true,
       blockedReason: driver.blockedReason || '',
       status: driver.status,
-      driver: {
-        id: driver.id,
-        fullName: driver.fullName,
-        phone: driver.phone,
-      },
+     driver: {
+  id: driver.id,
+
+  fullName: driver.fullName,
+  email: driver.email,
+  phone: driver.phone,
+
+  carBrand: driver.carBrand,
+  carModel: driver.carModel,
+  carPlate: driver.carPlate,
+  carColor: driver.carColor,
+  carYear: driver.carYear,
+  carSeats: driver.carSeats,
+
+  renavam: driver.renavam,
+
+  driverPhoto: driver.driverPhoto,
+  vehiclePhoto: driver.vehiclePhoto,
+  documentPhoto: driver.documentPhoto,
+
+  licensePhoto: driver.licensePhoto,
+  cnhFrontPhoto: driver.cnhFrontPhoto,
+  cnhBackPhoto: driver.cnhBackPhoto,
+
+  vehicleDocumentPhoto: driver.vehicleDocumentPhoto,
+  vehicleDocumentPdf: driver.vehicleDocumentPdf,
+
+  vehicleSidePhoto: driver.vehicleSidePhoto,
+  vehicleBackPhoto: driver.vehicleBackPhoto,
+},
     });
   });
 
