@@ -692,16 +692,13 @@ async function blockDriver() {
       }
     );
 
-    const data =
-      await response.json();
+    const data = await response.json();
 
     if (!data.success) {
-
       alert(
         data.message ||
-        'Erro ao bloquear motorista.'
+          'Erro ao bloquear motorista.'
       );
-
       return;
     }
 
