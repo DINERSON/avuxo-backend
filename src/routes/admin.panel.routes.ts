@@ -664,42 +664,60 @@ async function approveDriver() {
 }
 
 async function blockDriver() {
-  if (!currentDriverId) return;
-
- async function blockDriver() {
 
   if (!currentDriverId) return;
 
-  await fetch(
-    '/admin/drivers/' +
-      currentDriverId +
-      '/block',
-    {
-      method: 'POST',
+  try {
 
-      headers: {
-        'Content-Type':
-          'application/json',
+    const response = await fetch(
+      '/admin/drivers/' +
+        currentDriverId +
+        '/block',
+      {
+        method: 'POST',
 
-        Authorization:
-          'Bearer ' +
-          adminToken,
-      },
+        headers: {
+          'Content-Type':
+            'application/json',
 
-      body: JSON.stringify({
-        reason:
-          'Bloqueado pelo admin',
-      }),
+          Authorization:
+            'Bearer ' +
+            adminToken,
+        },
+
+        body: JSON.stringify({
+          reason:
+            'Bloqueado pelo admin',
+        }),
+      }
+    );
+
+    const data =
+      await response.json();
+
+    if (!data.success) {
+
+      alert(
+        data.message ||
+        'Erro ao bloquear motorista.'
+      );
+
+      return;
     }
-  );
 
-  closeModal();
+    closeModal();
 
-  loadDrivers();
-}
+    await loadDrivers();
 
-  closeModal();
-  loadDrivers();
+  } catch (error) {
+
+    console.error(error);
+
+    alert(
+      'Erro ao bloquear motorista.'
+    );
+
+  }
 }
 
 async function rejectDriver() {
