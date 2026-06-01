@@ -3,6 +3,14 @@ import { Express } from 'express';
 import { memoryStore } from '../storage/memory.store';
 import { DriverAccount } from '../types/app.types';
 
+function normalizePhone(value: unknown) {
+  return String(value || '').replace(/\D/g, '');
+}
+
+function normalizePlate(value: unknown) {
+  return String(value || '').toUpperCase().trim();
+}
+
 export function registerDriverRoutes(app: Express) {
   app.get('/drivers', (_req, res) => {
     res.json({
@@ -12,6 +20,30 @@ export function registerDriverRoutes(app: Express) {
   });
 
   app.post('/drivers/register', (req, res) => {
+    const phone = normalizePhone(req.body.phone);
+
+    const plate = normalizePlate(
+      req.body.carPlate || req.body.plate,
+    );
+
+    const alreadyExists = memoryStore.driversDatabase.find((item) => {
+      const itemPhone = normalizePhone(item.phone);
+      const itemPlate = normalizePlate(item.carPlate);
+
+      return (
+        (phone.length > 0 && itemPhone === phone) ||
+        (plate.length > 0 && itemPlate === plate)
+      );
+    });
+
+    if (alreadyExists) {
+      return res.status(409).json({
+        success: false,
+        message: 'Motorista já cadastrado com este telefone ou placa.',
+        driver: alreadyExists,
+      });
+    }
+
     const driver: DriverAccount = {
       id: Date.now(),
 
@@ -58,65 +90,46 @@ export function registerDriverRoutes(app: Express) {
 
     memoryStore.driversDatabase.unshift(driver);
 
-    res.json({
+    return res.json({
       success: true,
       message: 'Motorista cadastrado com sucesso',
       driver,
     });
   });
-app.get('/drivers/status/:phone', (req, res) => {
 
-  const phone = String(
-    req.params.phone || '',
-  ).replace(/\D/g, '');
+  app.get('/drivers/status/:phone', (req, res) => {
+    const phone = normalizePhone(req.params.phone);
 
-  const driver =
-    memoryStore.driversDatabase.find(
-      (item) =>
-        String(item.phone || '')
-          .replace(/\D/g, '') === phone,
+    const driver = memoryStore.driversDatabase.find(
+      (item) => normalizePhone(item.phone) === phone,
     );
 
-  if (!driver) {
-    return res.status(404).json({
-      success: false,
-      found: false,
-      approved: false,
+    if (!driver) {
+      return res.status(404).json({
+        success: false,
+        found: false,
+        approved: false,
+        blocked: false,
+        status: 'not_found',
+      });
+    }
+
+    return res.json({
+      success: true,
+      found: true,
+      approved: driver.approved === true,
+      blocked: driver.blocked === true,
+      blockedReason: driver.blockedReason || '',
+      status: driver.status,
+      driver: {
+        id: driver.id,
+        fullName: driver.fullName,
+        phone: driver.phone,
+      },
     });
-  }
-
-  return res.json({
-  success: true,
-  found: true,
-  approved: driver.approved === true,
-  blocked: driver.blocked === true,
-  blockedReason: driver.blockedReason || '',
-  status: driver.status,
-  driver: {
-    id: driver.id,
-    fullName: driver.fullName,
-    phone: driver.phone,
-  },
-});
-});
-  app.post('/drivers/status', (req, res) => {
-const phone = String(req.body.phone || '').replace(/\D/g, '');
-const plate = String(req.body.carPlate || req.body.plate || '').toUpperCase().trim();
-
-const alreadyExists = memoryStore.driversDatabase.find((item) => {
-  const itemPhone = String(item.phone || '').replace(/\D/g, '');
-  const itemPlate = String(item.carPlate || '').toUpperCase().trim();
-
-  return itemPhone === phone || itemPlate === plate;
-});
-
-if (alreadyExists) {
-  return res.status(409).json({
-    success: false,
-    message: 'Motorista já cadastrado com este telefone ou placa.',
-    driver: alreadyExists,
   });
-}
+
+  app.post('/drivers/status', (req, res) => {
     const id = Number(req.body.id || req.body.driverId);
     const online = Boolean(req.body.online);
 
@@ -125,32 +138,31 @@ if (alreadyExists) {
     );
 
     if (!driver) {
-      res.status(404).json({
+      return res.status(404).json({
         success: false,
         message: 'Motorista não encontrado',
       });
-      return;
     }
 
     if (driver.blocked) {
-      res.status(403).json({
+      return res.status(403).json({
         success: false,
         message: 'Motorista bloqueado',
+        driver,
       });
-      return;
     }
 
     if (!driver.approved) {
-      res.status(403).json({
+      return res.status(403).json({
         success: false,
         message: 'Motorista ainda não aprovado',
+        driver,
       });
-      return;
     }
 
     driver.online = online;
 
-    res.json({
+    return res.json({
       success: true,
       driver,
     });
