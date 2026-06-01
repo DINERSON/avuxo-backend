@@ -339,10 +339,90 @@ export function registerDriverRoutes(app: Express) {
     });
   });
 
-  app.get('/driver/notifications/:id', (_req, res) => {
-    return res.json({
-      success: true,
-      notifications: [],
+ app.get('/driver/notifications/:id', (req, res) => {
+  const id = Number(req.params.id);
+
+  const driver = memoryStore.driversDatabase.find(
+    (item) => Number(item.id) === id,
+  );
+
+  if (!driver) {
+    return res.status(404).json({
+      success: false,
+      message: 'Motorista não encontrado',
     });
+  }
+
+  const notifications: any[] = [];
+
+  if (driver.approved) {
+    notifications.push({
+      type: 'document',
+      title: 'Cadastro aprovado',
+      message: 'Seu cadastro foi aprovado pela AVUXO.',
+      time: driver.createdAt,
+    });
+  }
+
+  if (driver.blocked) {
+    notifications.push({
+      type: 'warning',
+      title: 'Conta bloqueada',
+      message: driver.blockedReason || 'Sua conta está bloqueada no momento.',
+      time: new Date().toISOString(),
+    });
+  }
+
+  const driverRides = memoryStore.rides.filter((ride) => {
+    const rideDriver = ride.driver || {};
+    const rideDriverId = Number(
+      rideDriver.id || rideDriver.driverId || ride.driverId || 0,
+    );
+
+    return rideDriverId === id;
   });
+
+  driverRides.forEach((ride) => {
+    if (ride.status === 'finished' || ride.status === 'completed') {
+      notifications.push({
+        type: 'payment',
+        title: 'Pagamento recebido',
+        message: `Você recebeu R$ ${Number(
+          ride.total || ride.price || ride.fare || 0,
+        )
+          .toFixed(2)
+          .replace('.', ',')} por uma corrida finalizada.`,
+        time: ride.finishedAt || ride.updatedAt || ride.createdAt,
+      });
+
+      notifications.push({
+        type: 'ride',
+        title: 'Corrida concluída',
+        message: 'Sua corrida foi finalizada com sucesso.',
+        time: ride.finishedAt || ride.updatedAt || ride.createdAt,
+      });
+    }
+
+    if (ride.status === 'cancelled' || ride.status === 'canceled') {
+      notifications.push({
+        type: 'warning',
+        title: 'Corrida cancelada',
+        message: ride.cancelReason || 'Uma corrida foi cancelada.',
+        time: ride.cancelledAt || ride.updatedAt || ride.createdAt,
+      });
+    }
+  });
+
+  notifications.push({
+    type: 'campaign',
+    title: 'Aviso AVUXO',
+    message: 'Fique online nos horários de pico para ganhar mais.',
+    time: new Date().toISOString(),
+  });
+
+  return res.json({
+    success: true,
+    notifications: notifications.reverse(),
+  });
+});
 }
