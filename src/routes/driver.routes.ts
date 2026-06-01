@@ -86,16 +86,18 @@ app.get('/drivers/status/:phone', (req, res) => {
   }
 
   return res.json({
-    success: true,
-    found: true,
-    approved: driver.approved === true,
-    status: driver.status,
-    driver: {
-      id: driver.id,
-      fullName: driver.fullName,
-      phone: driver.phone,
-    },
-  });
+  success: true,
+  found: true,
+  approved: driver.approved === true,
+  blocked: driver.blocked === true,
+  blockedReason: driver.blockedReason || '',
+  status: driver.status,
+  driver: {
+    id: driver.id,
+    fullName: driver.fullName,
+    phone: driver.phone,
+  },
+});
 });
   app.post('/drivers/status', (req, res) => {
 const phone = String(req.body.phone || '').replace(/\D/g, '');
