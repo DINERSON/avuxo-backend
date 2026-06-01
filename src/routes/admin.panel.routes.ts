@@ -520,7 +520,7 @@ async function rideAction(endpoint) {
     body: JSON.stringify({
       reason: 'Ação feita pelo painel admin',
       cancelledBy: 'admin',
-    }),
+    }),	
   });
 
   loadCurrentRide();
@@ -666,31 +666,37 @@ async function approveDriver() {
 async function blockDriver() {
   if (!currentDriverId) return;
 
- await fetch(
-  '/admin/drivers/' +
-    currentDriverId +
-    '/block',
-  {
-    method:'POST',
-    headers:{
-      'Content-Type':
-        'application/json',
+ async function blockDriver() {
 
-      Authorization:
-        'Bearer ' +
-        adminToken,
-    },
+  if (!currentDriverId) return;
 
-    body:JSON.stringify({
-      reason:
-        'Bloqueado pelo admin',
-    }),
-  }
-); {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ reason: 'Bloqueado pelo admin' }),
-  });
+  await fetch(
+    '/admin/drivers/' +
+      currentDriverId +
+      '/block',
+    {
+      method: 'POST',
+
+      headers: {
+        'Content-Type':
+          'application/json',
+
+        Authorization:
+          'Bearer ' +
+          adminToken,
+      },
+
+      body: JSON.stringify({
+        reason:
+          'Bloqueado pelo admin',
+      }),
+    }
+  );
+
+  closeModal();
+
+  loadDrivers();
+}
 
   closeModal();
   loadDrivers();
