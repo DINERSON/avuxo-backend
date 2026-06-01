@@ -448,6 +448,7 @@ export function registerAdminPanelRoutes(app: Express) {
 
 <script>
 let currentDriverId = null;
+window.driversCache = [];
 
 const adminToken =
   localStorage.getItem(
@@ -545,52 +546,71 @@ function openSection(sectionId, button) {
 }
 
 async function loadDrivers() {
-  const response =
-  await fetch('/admin/drivers', {
-    headers: {
-      Authorization:
-        'Bearer ' + adminToken,
-    },
-  });
-  const data = await response.json();
-  const drivers = data.drivers || [];
-
-  document.getElementById('driversCount').textContent = drivers.length;
-  document.getElementById('pendingCount').textContent = drivers.filter(function(d) {
-    return (d.status || 'pending') === 'pending';
-  }).length;
-  document.getElementById('approvedCount').textContent = drivers.filter(function(d) {
-    return d.status === 'approved';
-  }).length;
-  document.getElementById('blockedCount').textContent = drivers.filter(function(d) {
-    return d.status === 'blocked';
-  }).length;
-
   const tbody = document.getElementById('driversTable');
 
-  if (!drivers.length) {
-    tbody.innerHTML = '<tr><td colspan="4">Nenhum motorista.</td></tr>';
-    return;
+  tbody.innerHTML =
+    '<tr><td colspan="4">Atualizando...</td></tr>';
+
+  try {
+    const response = await fetch('/admin/drivers', {
+      method: 'GET',
+      headers: {
+        Authorization: 'Bearer ' + adminToken,
+      },
+    });
+
+    if (response.status === 401) {
+      localStorage.removeItem('avuxo_admin_token');
+      window.location.href = '/login';
+      return;
+    }
+
+    const data = await response.json();
+
+    if (!data.success) {
+      tbody.innerHTML =
+        '<tr><td colspan="4">Erro ao carregar motoristas.</td></tr>';
+      return;
+    }
+
+    const drivers = data.drivers || [];
+
+    window.driversCache = drivers;
+
+    document.getElementById('driversCount').textContent = drivers.length;
+
+    document.getElementById('pendingCount').textContent = drivers.filter(function(d) {
+      return (d.status || 'pending') === 'pending';
+    }).length;
+
+    document.getElementById('approvedCount').textContent = drivers.filter(function(d) {
+      return d.status === 'approved';
+    }).length;
+
+    document.getElementById('blockedCount').textContent = drivers.filter(function(d) {
+      return d.status === 'blocked';
+    }).length;
+
+    if (!drivers.length) {
+      tbody.innerHTML = '<tr><td colspan="4">Nenhum motorista.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = drivers.map(function(driver, index) {
+      return (
+        '<tr>' +
+          '<td>' + (driver.fullName || '-') + '</td>' +
+          '<td>' + (driver.phone || '-') + '</td>' +
+          '<td><span class="badge">' + (driver.status || 'pending') + '</span></td>' +
+          '<td><button onclick="openModal(window.driversCache[' + index + '])">Revisar</button></td>' +
+        '</tr>'
+      );
+    }).join('');
+  } catch (error) {
+    console.error(error);
+    tbody.innerHTML =
+      '<tr><td colspan="4">Falha ao atualizar motoristas.</td></tr>';
   }
-
-  window.driversCache = drivers;
-
-tbody.innerHTML = drivers.map(function(driver, index) {
-  return (
-    '<tr>' +
-      '<td>' + (driver.fullName || '-') + '</td>' +
-      '<td>' + (driver.phone || '-') + '</td>' +
-      '<td><span class="badge">' +
-        (driver.status || 'pending') +
-      '</span></td>' +
-      '<td>' +
-        '<button onclick="openModal(window.driversCache[' +
-        index +
-        '])">Revisar</button>' +
-      '</td>' +
-    '</tr>'
-  );
-}).join('');
 }
 
 function createDocCard(title, image, pdf) {
@@ -654,48 +674,47 @@ function closeZoom() {
 
 async function approveDriver() {
   if (!currentDriverId) return;
- await fetch(
-  '/admin/drivers/' +
-    currentDriverId +
-    '/approve',
-  {
-    method:'POST',
-    headers:{
-      Authorization:
-        'Bearer ' +
-        adminToken,
-    },
+
+  try {
+    const response = await fetch(
+      '/admin/drivers/' + currentDriverId + '/approve',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer ' + adminToken,
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    if (!data.success) {
+      alert(data.message || 'Erro ao aprovar motorista.');
+      return;
+    }
+
+    closeModal();
+    await loadDrivers();
+  } catch (error) {
+    console.error(error);
+    alert('Erro ao aprovar motorista.');
   }
-);
-  closeModal();
-  loadDrivers();
 }
 
 async function blockDriver() {
-
   if (!currentDriverId) return;
 
   try {
-
     const response = await fetch(
-      '/admin/drivers/' +
-        currentDriverId +
-        '/block',
+      '/admin/drivers/' + currentDriverId + '/block',
       {
         method: 'POST',
-
         headers: {
-          'Content-Type':
-            'application/json',
-
-          Authorization:
-            'Bearer ' +
-            adminToken,
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer ' + adminToken,
         },
-
         body: JSON.stringify({
-          reason:
-            'Bloqueado pelo admin',
+          reason: 'Bloqueado pelo admin',
         }),
       }
     );
@@ -703,45 +722,45 @@ async function blockDriver() {
     const data = await response.json();
 
     if (!data.success) {
-      alert(
-        data.message ||
-          'Erro ao bloquear motorista.'
-      );
+      alert(data.message || 'Erro ao bloquear motorista.');
       return;
     }
 
     closeModal();
-
     await loadDrivers();
-
   } catch (error) {
-
     console.error(error);
-
-    alert(
-      'Erro ao bloquear motorista.'
-    );
-
+    alert('Erro ao bloquear motorista.');
   }
 }
 
 async function rejectDriver() {
   if (!currentDriverId) return;
- await fetch(
-  '/admin/drivers/' +
-    currentDriverId +
-    '/reject',
-  {
-    method:'POST',
-    headers:{
-      Authorization:
-        'Bearer ' +
-        adminToken,
-    },
+
+  try {
+    const response = await fetch(
+      '/admin/drivers/' + currentDriverId + '/reject',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer ' + adminToken,
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    if (!data.success) {
+      alert(data.message || 'Erro ao rejeitar motorista.');
+      return;
+    }
+
+    closeModal();
+    await loadDrivers();
+  } catch (error) {
+    console.error(error);
+    alert('Erro ao rejeitar motorista.');
   }
-);
-  closeModal();
-  loadDrivers();
 }
 
 async function loadCurrentRide() {
