@@ -64,7 +64,39 @@ export function registerDriverRoutes(app: Express) {
       driver,
     });
   });
+app.get('/drivers/status/:phone', (req, res) => {
 
+  const phone = String(
+    req.params.phone || '',
+  ).replace(/\D/g, '');
+
+  const driver =
+    memoryStore.driversDatabase.find(
+      (item) =>
+        String(item.phone || '')
+          .replace(/\D/g, '') === phone,
+    );
+
+  if (!driver) {
+    return res.status(404).json({
+      success: false,
+      found: false,
+      approved: false,
+    });
+  }
+
+  return res.json({
+    success: true,
+    found: true,
+    approved: driver.approved === true,
+    status: driver.status,
+    driver: {
+      id: driver.id,
+      fullName: driver.fullName,
+      phone: driver.phone,
+    },
+  });
+});
   app.post('/drivers/status', (req, res) => {
 const phone = String(req.body.phone || '').replace(/\D/g, '');
 const plate = String(req.body.carPlate || req.body.plate || '').toUpperCase().trim();
