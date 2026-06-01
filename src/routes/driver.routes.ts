@@ -159,6 +159,43 @@ totalRatings: driver.totalRatings || 0,
   });
 
   app.post('/drivers/:id/photo', (req, res) => {
+  console.log('===== FOTO =====');
+  console.log('ID:', req.params.id);
+  console.log('BODY:', Object.keys(req.body || {}));
+
+  const id = Number(req.params.id);
+  const driverPhoto = String(req.body.driverPhoto || '').trim();
+
+  const driver = memoryStore.driversDatabase.find(
+    (item) => Number(item.id) === id,
+  );
+
+  if (!driver) {
+    console.log('MOTORISTA NÃO ENCONTRADO');
+
+    return res.status(404).json({
+      success: false,
+      message: 'Motorista não encontrado',
+    });
+  }
+
+  if (!driverPhoto) {
+    console.log('FOTO VAZIA');
+
+    return res.status(400).json({
+      success: false,
+      message: 'Foto vazia',
+    });
+  }
+
+  driver.driverPhoto = driverPhoto;
+
+  console.log('FOTO SALVA');
+
+  return res.json({
+    success: true,
+  });
+});
     const id = Number(req.params.id);
     const driverPhoto = String(req.body.driverPhoto || '').trim();
 
