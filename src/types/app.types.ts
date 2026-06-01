@@ -111,6 +111,9 @@ export interface DriverAccount {
   email: string;
   phone: string;
 
+  rating: number;
+  totalRatings: number;
+
   carBrand: string;
   carModel: string;
   carPlate: string;

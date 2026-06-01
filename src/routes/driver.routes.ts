@@ -21,7 +21,6 @@ export function registerDriverRoutes(app: Express) {
 
   app.post('/drivers/register', (req, res) => {
     const phone = normalizePhone(req.body.phone);
-
     const plate = normalizePlate(req.body.carPlate || req.body.plate);
 
     const alreadyExists = memoryStore.driversDatabase.find((item) => {
@@ -76,12 +75,11 @@ export function registerDriverRoutes(app: Express) {
       rentedVehicle: Boolean(req.body.rentedVehicle),
 
       status: 'pending',
-
       approved: false,
       online: false,
-       
+
       rating: 0,
-totalRatings: 0,
+      totalRatings: 0,
 
       blocked: false,
       blockedReason: '',
@@ -130,7 +128,7 @@ totalRatings: 0,
         phone: driver.phone,
 
         rating: driver.rating || 0,
-totalRatings: driver.totalRatings || 0,
+        totalRatings: driver.totalRatings || 0,
 
         carBrand: driver.carBrand,
         carModel: driver.carModel,
@@ -159,43 +157,6 @@ totalRatings: driver.totalRatings || 0,
   });
 
   app.post('/drivers/:id/photo', (req, res) => {
-  console.log('===== FOTO =====');
-  console.log('ID:', req.params.id);
-  console.log('BODY:', Object.keys(req.body || {}));
-
-  const id = Number(req.params.id);
-  const driverPhoto = String(req.body.driverPhoto || '').trim();
-
-  const driver = memoryStore.driversDatabase.find(
-    (item) => Number(item.id) === id,
-  );
-
-  if (!driver) {
-    console.log('MOTORISTA NÃO ENCONTRADO');
-
-    return res.status(404).json({
-      success: false,
-      message: 'Motorista não encontrado',
-    });
-  }
-
-  if (!driverPhoto) {
-    console.log('FOTO VAZIA');
-
-    return res.status(400).json({
-      success: false,
-      message: 'Foto vazia',
-    });
-  }
-
-  driver.driverPhoto = driverPhoto;
-
-  console.log('FOTO SALVA');
-
-  return res.json({
-    success: true,
-  });
-});
     const id = Number(req.params.id);
     const driverPhoto = String(req.body.driverPhoto || '').trim();
 
@@ -213,7 +174,39 @@ totalRatings: driver.totalRatings || 0,
     if (!driverPhoto) {
       return res.status(400).json({
         success: false,
-        message: 'Foto do motorista não enviada.',
+        message: 'Foto vazia',
+      });
+    }
+
+    driver.driverPhoto = driverPhoto;
+
+    return res.json({
+      success: true,
+      message: 'Foto atualizada com sucesso.',
+      driverPhoto: driver.driverPhoto,
+      driver,
+    });
+  });
+
+  app.post('/drivers/photo-by-phone/:phone', (req, res) => {
+    const phone = normalizePhone(req.params.phone);
+    const driverPhoto = String(req.body.driverPhoto || '').trim();
+
+    const driver = memoryStore.driversDatabase.find(
+      (item) => normalizePhone(item.phone) === phone,
+    );
+
+    if (!driver) {
+      return res.status(404).json({
+        success: false,
+        message: 'Motorista não encontrado pelo telefone',
+      });
+    }
+
+    if (!driverPhoto) {
+      return res.status(400).json({
+        success: false,
+        message: 'Foto vazia',
       });
     }
 
@@ -337,11 +330,11 @@ totalRatings: driver.totalRatings || 0,
     return res.json({
       success: true,
       performance: {
-        rating: 4.98,
-        completedTrips: 325,
-        acceptanceRate: 97,
-        cancelRate: 1,
-        onlineHours: 142,
+        rating: 0,
+        completedTrips: 0,
+        acceptanceRate: 0,
+        cancelRate: 0,
+        onlineHours: 0,
       },
     });
   });
