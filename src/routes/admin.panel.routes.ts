@@ -545,71 +545,72 @@ function openSection(sectionId, button) {
 }
 
 async function loadDrivers() {
+  const response =
+  await fetch('/admin/drivers', {
+    headers: {
+      Authorization:
+        'Bearer ' + adminToken,
+    },
+  });
+  const data = await response.json();
+  const drivers = data.drivers || [];
+
+  document.getElementById('driversCount').textContent = drivers.length;
+  document.getElementById('pendingCount').textContent = drivers.filter(function(d) {
+    return (d.status || 'pending') === 'pending';
+  }).length;
+  document.getElementById('approvedCount').textContent = drivers.filter(function(d) {
+    return d.status === 'approved';
+  }).length;
+  document.getElementById('blockedCount').textContent = drivers.filter(function(d) {
+    return d.status === 'blocked';
+  }).length;
+
   const tbody = document.getElementById('driversTable');
 
-  tbody.innerHTML =
-    '<tr><td colspan="4">Atualizando...</td></tr>';
-
-  try {
-    const response = await fetch('/admin/drivers', {
-      method: 'GET',
-      headers: {
-        Authorization: 'Bearer ' + adminToken,
-      },
-    });
-
-    if (response.status === 401) {
-      localStorage.removeItem('avuxo_admin_token');
-      window.location.href = '/login';
-      return;
-    }
-
-    const data = await response.json();
-
-    if (!data.success) {
-      tbody.innerHTML =
-        '<tr><td colspan="4">Erro ao carregar motoristas.</td></tr>';
-      return;
-    }
-
-    const drivers = data.drivers || [];
-
-    document.getElementById('driversCount').textContent = drivers.length;
-
-    document.getElementById('pendingCount').textContent = drivers.filter(function(d) {
-      return (d.status || 'pending') === 'pending';
-    }).length;
-
-    document.getElementById('approvedCount').textContent = drivers.filter(function(d) {
-      return d.status === 'approved';
-    }).length;
-
-    document.getElementById('blockedCount').textContent = drivers.filter(function(d) {
-      return d.status === 'blocked';
-    }).length;
-
-    if (!drivers.length) {
-      tbody.innerHTML =
-        '<tr><td colspan="4">Nenhum motorista.</td></tr>';
-      return;
-    }
-
-    tbody.innerHTML = drivers.map(function(driver) {
-      return (
-        '<tr>' +
-          '<td>' + (driver.fullName || '-') + '</td>' +
-          '<td>' + (driver.phone || '-') + '</td>' +
-          '<td><span class="badge">' + (driver.status || 'pending') + '</span></td>' +
-          '<td><button onclick=\\'openModal(' + JSON.stringify(driver).replace(/'/g, '&apos;') + ')\\'>Revisar</button></td>' +
-        '</tr>'
-      );
-    }).join('');
-  } catch (error) {
-    console.error(error);
-
-    tbody.innerHTML =
-      '<tr><td colspan="4">Falha ao atualizar motoristas.</td></tr>';
+  if (!drivers.length) {
+    tbody.innerHTML = '<tr><td colspan="4">Nenhum motorista.</td></tr>';
+    return;
   }
+
+  window.driversCache = drivers;
+
+tbody.innerHTML = drivers.map(function(driver, index) {
+  return (
+    '<tr>' +
+      '<td>' + (driver.fullName || '-') + '</td>' +
+      '<td>' + (driver.phone || '-') + '</td>' +
+      '<td><span class="badge">' +
+        (driver.status || 'pending') +
+      '</span></td>' +
+      '<td>' +
+        '<button onclick="openModal(window.driversCache[' +
+        index +
+        '])">Revisar</button>' +
+      '</td>' +
+    '</tr>'
+  );
+}).join('');
+}
+
+function createDocCard(title, image, pdf) {
+  return (
+    '<div class="doc-card">' +
+      (
+        image
+          ? '<img src="' + image + '" onclick="openZoom(\\'' + image + '\\')" />'
+          : '<div class="empty-doc">Sem imagem</div>'
+      ) +
+      '<div class="doc-info">' +
+        '<div class="doc-title">' + title + '</div>' +
+        (
+          pdf
+            ? '<button class="pdf-btn" onclick="window.open(\\'' + pdf + '\\', \\'_blank\\')">Abrir PDF</button>'
+            : ''
+        ) +
+      '</div>' +
+    '</div>'
+  );
 }
 
 function openModal(driver) {
