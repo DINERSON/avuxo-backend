@@ -6,264 +6,273 @@ export function registerAdminPanelRoutes(app: Express) {
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AVUXO Admin</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AVUXO Admin</title>
 
-  <style>
-    * { box-sizing: border-box; }
+<style>
+* { box-sizing: border-box; }
 
-    body {
-      margin: 0;
-      min-height: 100vh;
-      background:
-        radial-gradient(circle at top left, rgba(36,248,119,0.14), transparent 32%),
-        radial-gradient(circle at 90% 10%, rgba(36,248,119,0.06), transparent 28%),
-        #050609;
-      color: white;
-      font-family: Arial, sans-serif;
-    }
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top left, rgba(36,248,119,0.14), transparent 32%),
+    radial-gradient(circle at 90% 10%, rgba(36,248,119,0.06), transparent 28%),
+    #050609;
+  color: white;
+  font-family: Arial, sans-serif;
+}
 
-    .shell { display: grid; grid-template-columns: 280px 1fr; min-height: 100vh; }
+.shell { display: grid; grid-template-columns: 280px 1fr; min-height: 100vh; }
 
-    aside {
-      padding: 30px;
-      background: rgba(255,255,255,0.03);
-      border-right: 1px solid rgba(255,255,255,0.08);
-      backdrop-filter: blur(20px);
-    }
+aside {
+  padding: 30px;
+  background: rgba(255,255,255,0.03);
+  border-right: 1px solid rgba(255,255,255,0.08);
+  backdrop-filter: blur(20px);
+}
 
-    .logo {
-      color: #24F877;
-      font-size: 32px;
-      font-weight: 900;
-      letter-spacing: 4px;
-      text-shadow: 0 0 28px rgba(36,248,119,0.32);
-    }
+.logo {
+  color: #24F877;
+  font-size: 32px;
+  font-weight: 900;
+  letter-spacing: 4px;
+  text-shadow: 0 0 28px rgba(36,248,119,0.32);
+}
 
-    .sub {
-      margin-top: 8px;
-      color: #8c96a8;
-      font-size: 12px;
-      letter-spacing: 3px;
-    }
+.sub {
+  margin-top: 8px;
+  color: #8c96a8;
+  font-size: 12px;
+  letter-spacing: 3px;
+}
 
-    nav { margin-top: 40px; display: grid; gap: 12px; }
+nav { margin-top: 40px; display: grid; gap: 12px; }
 
-    button {
-      border: 0;
-      padding: 16px;
-      border-radius: 18px;
-      background: rgba(255,255,255,0.04);
-      color: white;
-      text-align: left;
-      font-weight: 800;
-      cursor: pointer;
-      transition: 0.2s;
-    }
+button {
+  border: 0;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: rgba(255,255,255,0.04);
+  color: white;
+  text-align: left;
+  font-weight: 800;
+  cursor: pointer;
+  transition: 0.2s;
+}
 
-    button:hover, button.active {
-      color: #24F877;
-      background: rgba(36,248,119,0.12);
-    }
+button:hover, button.active {
+  color: #24F877;
+  background: rgba(36,248,119,0.12);
+}
 
-    main { padding: 40px; }
+main { padding: 40px; }
 
-    h1 { margin-top: 0; font-size: 40px; }
+h1 { margin-top: 0; font-size: 40px; }
 
-    p { color: #8c96a8; }
+p { color: #8c96a8; }
 
-    .section { display: none; }
+.section { display: none; }
 
-    .section.active { display: block; }
+.section.active { display: block; }
 
-    .cards {
-      margin-top: 30px;
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 18px;
-    }
+.cards {
+  margin-top: 30px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+}
 
-    .card {
-      padding: 24px;
-      border-radius: 24px;
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(255,255,255,0.08);
-      box-shadow: 0 20px 60px rgba(0,0,0,0.22);
-    }
+.card {
+  padding: 24px;
+  border-radius: 24px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.22);
+}
 
-    .card small { color: #8c96a8; }
+.card small { color: #8c96a8; }
 
-    .card strong {
-      display: block;
-      margin-top: 12px;
-      font-size: 34px;
-    }
+.card strong {
+  display: block;
+  margin-top: 12px;
+  font-size: 34px;
+}
 
-    .panel {
-      margin-top: 30px;
-      border-radius: 28px;
-      overflow: hidden;
-      background: rgba(255,255,255,0.03);
-      border: 1px solid rgba(255,255,255,0.08);
-      box-shadow: 0 20px 60px rgba(0,0,0,0.22);
-    }
+.panel {
+  margin-top: 30px;
+  border-radius: 28px;
+  overflow: auto;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.22);
+}
 
-    .panel-head {
-      padding: 20px 24px;
-      border-bottom: 1px solid rgba(255,255,255,0.08);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
+.panel-head {
+  padding: 20px 24px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
 
-    table { width: 100%; border-collapse: collapse; }
+table { width: 100%; border-collapse: collapse; min-width: 900px; }
 
-    th, td {
-      padding: 18px 20px;
-      border-bottom: 1px solid rgba(255,255,255,0.06);
-      text-align: left;
-    }
+th, td {
+  padding: 18px 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  text-align: left;
+  vertical-align: top;
+}
 
-    th {
-      color: #8c96a8;
-      font-size: 12px;
-      text-transform: uppercase;
-    }
+th {
+  color: #8c96a8;
+  font-size: 12px;
+  text-transform: uppercase;
+}
 
-    .badge {
-      padding: 8px 12px;
-      border-radius: 999px;
-      background: rgba(36,248,119,0.12);
-      color: #24F877;
-      font-size: 12px;
-      font-weight: 900;
-    }
+.badge {
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(36,248,119,0.12);
+  color: #24F877;
+  font-size: 12px;
+  font-weight: 900;
+}
 
-    .premium-box {
-      margin-top: 30px;
-      padding: 28px;
-      border-radius: 28px;
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(255,255,255,0.08);
-    }
+.premium-box {
+  margin-top: 30px;
+  padding: 28px;
+  border-radius: 28px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+}
 
-    .modal {
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.82);
-      display: none;
-      justify-content: center;
-      align-items: center;
-      padding: 30px;
-      z-index: 9999;
-    }
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.82);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  padding: 30px;
+  z-index: 9999;
+}
 
-    .modal-content {
-      width: 100%;
-      max-width: 1200px;
-      max-height: 92vh;
-      overflow-y: auto;
-      border-radius: 30px;
-      background: #0b0f14;
-      border: 1px solid rgba(255,255,255,0.08);
-      padding: 30px;
-    }
+.modal-content {
+  width: 100%;
+  max-width: 1200px;
+  max-height: 92vh;
+  overflow-y: auto;
+  border-radius: 30px;
+  background: #0b0f14;
+  border: 1px solid rgba(255,255,255,0.08);
+  padding: 30px;
+}
 
-    .modal-top {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 20px;
-    }
+.modal-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
 
-    .modal-grid {
-      margin-top: 24px;
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 20px;
-    }
+.modal-grid {
+  margin-top: 24px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
 
-    .modal-card {
-      padding: 22px;
-      border-radius: 22px;
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(255,255,255,0.06);
-    }
+.modal-card {
+  padding: 22px;
+  border-radius: 22px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.06);
+}
 
-    .modal-card h3 {
-      margin-top: 0;
-      color: #24F877;
-      margin-bottom: 18px;
-    }
+.modal-card h3 {
+  margin-top: 0;
+  color: #24F877;
+  margin-bottom: 18px;
+}
 
-    .docs-grid {
-      margin-top: 26px;
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 18px;
-    }
+.docs-grid {
+  margin-top: 26px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+}
 
-    .doc-card {
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(255,255,255,0.06);
-      border-radius: 22px;
-      overflow: hidden;
-    }
+.doc-card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 22px;
+  overflow: hidden;
+}
 
-    .doc-card img {
-      width: 100%;
-      height: 220px;
-      object-fit: cover;
-      display: block;
-      cursor: pointer;
-    }
+.doc-card img {
+  width: 100%;
+  height: 220px;
+  object-fit: cover;
+  display: block;
+  cursor: pointer;
+}
 
-    .doc-info { padding: 16px; }
+.doc-info { padding: 16px; }
 
-    .doc-title { font-weight: 900; margin-bottom: 8px; }
+.doc-title { font-weight: 900; margin-bottom: 8px; }
 
-    .pdf-btn {
-      background: rgba(36,248,119,0.14);
-      color: #24F877;
-    }
+.pdf-btn {
+  background: rgba(36,248,119,0.14);
+  color: #24F877;
+}
 
-    .danger-btn {
-      background: rgba(255,77,77,0.12);
-      color: #ff5f5f;
-    }
+.danger-btn {
+  background: rgba(255,77,77,0.12);
+  color: #ff5f5f;
+}
 
-    .warn-btn {
-      background: rgba(255,204,102,0.12);
-      color: #ffcc66;
-    }
+.warn-btn {
+  background: rgba(255,204,102,0.12);
+  color: #ffcc66;
+}
 
-    .zoom-modal {
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.94);
-      display: none;
-      justify-content: center;
-      align-items: center;
-      z-index: 999999;
-      padding: 40px;
-    }
+.zoom-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.94);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 999999;
+  padding: 40px;
+}
 
-    .zoom-modal img {
-      max-width: 95%;
-      max-height: 95%;
-      border-radius: 24px;
-    }
+.zoom-modal img {
+  max-width: 95%;
+  max-height: 95%;
+  border-radius: 24px;
+}
 
-    .empty-doc {
-      height: 220px;
-      display: grid;
-      place-items: center;
-      color: #8c96a8;
-      background: rgba(255,255,255,0.03);
-    }
-  
+.empty-doc {
+  height: 220px;
+  display: grid;
+  place-items: center;
+  color: #8c96a8;
+  background: rgba(255,255,255,0.03);
+}
+
+@media (max-width: 900px) {
+  .shell { grid-template-columns: 1fr; }
+  aside { position: static; }
+  .cards { grid-template-columns: repeat(2, 1fr); }
+  main { padding: 22px; }
+}
 </style>
+
 <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 </head>
 
@@ -274,7 +283,7 @@ export function registerAdminPanelRoutes(app: Express) {
     <div class="sub">COMMAND CENTER</div>
 
     <nav>
-      <button onclick="logoutAdmin()"> Logout </button>
+      <button onclick="logoutAdmin()">Logout</button>
       <button class="active" onclick="openSection('dashboard', this)">Dashboard</button>
       <button onclick="openSection('drivers', this)">Motoristas</button>
       <button onclick="openSection('rides', this)">Corridas</button>
@@ -293,11 +302,15 @@ export function registerAdminPanelRoutes(app: Express) {
         <div class="card"><small>Pendentes</small><strong id="pendingCount">0</strong></div>
         <div class="card"><small>Aprovados</small><strong id="approvedCount">0</strong></div>
         <div class="card"><small>Bloqueados</small><strong id="blockedCount">0</strong></div>
+        <div class="card"><small>Corridas ativas</small><strong id="activeRidesCount">0</strong></div>
+        <div class="card"><small>Corridas hoje</small><strong id="todayRidesCount">0</strong></div>
+        <div class="card"><small>Receita hoje</small><strong id="todayRevenue">R$ 0</strong></div>
+        <div class="card"><small>Receita mês</small><strong id="monthRevenue">R$ 0</strong></div>
       </div>
 
       <div class="premium-box">
         <h2>Resumo operacional</h2>
-        <p>Backend online, painel ativo e dados carregando da API interna.</p>
+        <p id="operationalSummary">Backend online, painel ativo e dados carregando.</p>
       </div>
     </section>
 
@@ -329,65 +342,45 @@ export function registerAdminPanelRoutes(app: Express) {
     </section>
 
     <section id="rides" class="section">
+      <h1>Corridas</h1>
+      <p>Corridas realtime AVUXO.</p>
 
-  <h1>
-    Corridas
-  </h1>
+      <div class="panel">
+        <div class="panel-head">
+          <strong>Corrida atual</strong>
+          <button onclick="loadCurrentRide()">Atualizar</button>
+        </div>
 
-  <p>
-    Corridas realtime AVUXO.
-  </p>
+        <table>
+          <thead>
+            <tr>
+              <th>Passageiro</th>
+              <th>Tipo</th>
+              <th>Origem</th>
+              <th>Destino</th>
+              <th>Distância</th>
+              <th>Tempo</th>
+              <th>Valor</th>
+              <th>Status</th>
+            </tr>
+          </thead>
 
-  <div class="panel">
-
-    <div class="panel-head">
-
-      <strong>
-        Corrida atual
-      </strong>
-
-      <button onclick="loadCurrentRide()">
-        Atualizar
-      </button>
-
-    </div>
-
-    <table>
-
-      <thead>
-        <tr>
-          <th>Origem</th>
-          <th>Destino</th>
-          <th>Valor</th>
-          <th>Status</th>
-        </tr>
-      </thead>
-
-      <tbody id="ridesTable">
-
-        <tr>
-          <td colspan="4">
-            Carregando...
-          </td>
-        </tr>
-
-      </tbody>
-
-    </table>
-
-  </div>
-
-</section>
+          <tbody id="ridesTable">
+            <tr><td colspan="8">Carregando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
 
     <section id="finance" class="section">
       <h1>Financeiro</h1>
-      <p>Carteira e receitas.</p>
+      <p>Carteira, receitas e taxas AVUXO.</p>
 
       <div class="cards">
-        <div class="card"><small>Receita hoje</small><strong>R$ 0</strong></div>
+        <div class="card"><small>Receita hoje</small><strong id="financeTodayRevenue">R$ 0</strong></div>
+        <div class="card"><small>Receita mês</small><strong id="financeMonthRevenue">R$ 0</strong></div>
         <div class="card"><small>Taxas</small><strong>R$ 0</strong></div>
-        <div class="card"><small>Mensalidades</small><strong>R$ 0</strong></div>
-        <div class="card"><small>Pendentes</small><strong>0</strong></div>
+        <div class="card"><small>Mensalidades pendentes</small><strong>0</strong></div>
       </div>
     </section>
 
@@ -399,6 +392,8 @@ export function registerAdminPanelRoutes(app: Express) {
         <h2>AVUXO Backend</h2>
         <p>Status: online</p>
         <p>API: /admin/drivers funcionando</p>
+        <p>API: /ride/current funcionando</p>
+        <p>API: /ride/history funcionando</p>
         <p>Painel: /admin funcionando</p>
       </div>
     </section>
@@ -450,14 +445,10 @@ export function registerAdminPanelRoutes(app: Express) {
 let currentDriverId = null;
 window.driversCache = [];
 
-const adminToken =
-  localStorage.getItem(
-    'avuxo_admin_token'
-  );
+const adminToken = localStorage.getItem('avuxo_admin_token');
 
 if (!adminToken) {
-  window.location.href =
-    '/login';
+  window.location.href = '/login';
 }
 
 const socket = io();
@@ -466,44 +457,133 @@ socket.emit('admin:join');
 
 socket.on('server:ready', function(data) {
   console.log('SERVER READY', data);
+  loadCurrentRide();
+  loadRideStats();
 });
 
 socket.on('admin:state', function(data) {
-
   if (data.currentRide) {
     renderRide(data.currentRide);
+    updateActiveRideCard(data.currentRide);
+  } else {
+    renderRide(null);
+    updateActiveRideCard(null);
   }
 
+  loadRideStats();
 });
 
 socket.on('ride:update', function(data) {
-
   if (data.ride) {
     renderRide(data.ride);
+    updateActiveRideCard(data.ride);
+  } else {
+    renderRide(null);
+    updateActiveRideCard(null);
   }
 
+  loadRideStats();
 });
+
+function money(value) {
+  return 'R$ ' + Number(value || 0).toFixed(2).replace('.', ',');
+}
+
+function updateActiveRideCard(ride) {
+  const active = document.getElementById('activeRidesCount');
+
+  if (!active) return;
+
+  if (!ride) {
+    active.textContent = '0';
+    return;
+  }
+
+  active.textContent =
+    ride.status !== 'finished' && ride.status !== 'cancelled'
+      ? '1'
+      : '0';
+}
+
+async function loadRideStats() {
+  try {
+    const response = await fetch('/ride/history');
+    const data = await response.json();
+    const rides = data.rides || [];
+
+    const now = new Date();
+
+    const today = rides.filter(function(ride) {
+      const date = new Date(ride.finishedAt || ride.cancelledAt || ride.createdAt);
+      return date.toDateString() === now.toDateString();
+    });
+
+    const month = rides.filter(function(ride) {
+      const date = new Date(ride.finishedAt || ride.cancelledAt || ride.createdAt);
+      return (
+        date.getMonth() === now.getMonth() &&
+        date.getFullYear() === now.getFullYear()
+      );
+    });
+
+    const todayRevenue = today.reduce(function(total, ride) {
+      if (ride.status === 'cancelled') return total;
+      return total + Number(ride.total || ride.price || 0);
+    }, 0);
+
+    const monthRevenue = month.reduce(function(total, ride) {
+      if (ride.status === 'cancelled') return total;
+      return total + Number(ride.total || ride.price || 0);
+    }, 0);
+
+    document.getElementById('todayRidesCount').textContent = today.length;
+    document.getElementById('todayRevenue').textContent = money(todayRevenue);
+    document.getElementById('monthRevenue').textContent = money(monthRevenue);
+
+    document.getElementById('financeTodayRevenue').textContent = money(todayRevenue);
+    document.getElementById('financeMonthRevenue').textContent = money(monthRevenue);
+
+    document.getElementById('operationalSummary').textContent =
+      'Backend online • Corridas hoje: ' + today.length +
+      ' • Receita hoje: ' + money(todayRevenue) +
+      ' • Última atualização: ' + new Date().toLocaleTimeString('pt-BR');
+
+  } catch (error) {
+    console.error('Erro ao carregar estatísticas de corridas', error);
+  }
+}
 
 function renderRide(ride) {
   const tbody = document.getElementById('ridesTable');
 
+  if (!tbody) return;
+
   if (!ride) {
     tbody.innerHTML =
       '<tr>' +
-        '<td colspan="4">Nenhuma corrida ativa.</td>' +
+        '<td colspan="8">Nenhuma corrida ativa.</td>' +
       '</tr>';
     return;
   }
 
   tbody.innerHTML =
     '<tr>' +
+      '<td>' + (ride.passenger?.fullName || ride.passenger?.name || 'Passageiro') + '</td>' +
+      '<td>' + (ride.rideType || '-') + '</td>' +
       '<td>' + (ride.originName || '-') + '</td>' +
       '<td>' + (ride.destinationName || '-') + '</td>' +
-      '<td>R$ ' + (ride.total || ride.price || 0) + '</td>' +
+      '<td>' + (ride.distanceText || '-') + '</td>' +
+      '<td>' + (ride.eta || '-') + '</td>' +
+      '<td>' + money(ride.total || ride.price || 0) + '</td>' +
       '<td><span class="badge">' + (ride.status || 'pending') + '</span></td>' +
     '</tr>' +
     '<tr>' +
-      '<td colspan="4">' +
+      '<td colspan="8">' +
+        '<b>Motorista:</b> ' + (ride.driver?.fullName || ride.driver?.name || 'Aguardando motorista') +
+        ' | <b>Telefone:</b> ' + (ride.driver?.phone || '-') +
+        ' | <b>Placa:</b> ' + (ride.driver?.carPlate || ride.driver?.plate || '-') +
+        ' | <b>Pagamento:</b> ' + (ride.paymentMethod || 'PIX') +
+        '<br><br>' +
         '<button onclick="rideAction(\\'/ride/accept\\')">Aceitar</button> ' +
         '<button onclick="rideAction(\\'/ride/arrived\\')">Chegando</button> ' +
         '<button onclick="rideAction(\\'/ride/start\\')">Iniciar</button> ' +
@@ -512,19 +592,24 @@ function renderRide(ride) {
       '</td>' +
     '</tr>';
 }
-async function rideAction(endpoint) {
-  await fetch(endpoint, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      reason: 'Ação feita pelo painel admin',
-      cancelledBy: 'admin',
-    }),	
-  });
 
-  loadCurrentRide();
+async function rideAction(endpoint) {
+  try {
+    await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        reason: 'Ação feita pelo painel admin',
+        cancelledBy: 'admin',
+      }),
+    });
+
+    loadCurrentRide();
+    loadRideStats();
+  } catch (error) {
+    console.error(error);
+    alert('Erro ao executar ação da corrida.');
+  }
 }
 
 function openSection(sectionId, button) {
@@ -543,20 +628,22 @@ function openSection(sectionId, button) {
   if (sectionId === 'drivers' || sectionId === 'dashboard') {
     loadDrivers();
   }
+
+  if (sectionId === 'rides' || sectionId === 'dashboard' || sectionId === 'finance') {
+    loadCurrentRide();
+    loadRideStats();
+  }
 }
 
 async function loadDrivers() {
   const tbody = document.getElementById('driversTable');
 
-  tbody.innerHTML =
-    '<tr><td colspan="4">Atualizando...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="4">Atualizando...</td></tr>';
 
   try {
     const response = await fetch('/admin/drivers', {
       method: 'GET',
-      headers: {
-        Authorization: 'Bearer ' + adminToken,
-      },
+      headers: { Authorization: 'Bearer ' + adminToken },
     });
 
     if (response.status === 401) {
@@ -568,8 +655,7 @@ async function loadDrivers() {
     const data = await response.json();
 
     if (!data.success) {
-      tbody.innerHTML =
-        '<tr><td colspan="4">Erro ao carregar motoristas.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="4">Erro ao carregar motoristas.</td></tr>';
       return;
     }
 
@@ -578,15 +664,12 @@ async function loadDrivers() {
     window.driversCache = drivers;
 
     document.getElementById('driversCount').textContent = drivers.length;
-
     document.getElementById('pendingCount').textContent = drivers.filter(function(d) {
       return (d.status || 'pending') === 'pending';
     }).length;
-
     document.getElementById('approvedCount').textContent = drivers.filter(function(d) {
       return d.status === 'approved';
     }).length;
-
     document.getElementById('blockedCount').textContent = drivers.filter(function(d) {
       return d.status === 'blocked';
     }).length;
@@ -608,8 +691,7 @@ async function loadDrivers() {
     }).join('');
   } catch (error) {
     console.error(error);
-    tbody.innerHTML =
-      '<tr><td colspan="4">Falha ao atualizar motoristas.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="4">Falha ao atualizar motoristas.</td></tr>';
   }
 }
 
@@ -676,15 +758,10 @@ async function approveDriver() {
   if (!currentDriverId) return;
 
   try {
-    const response = await fetch(
-      '/admin/drivers/' + currentDriverId + '/approve',
-      {
-        method: 'POST',
-        headers: {
-          Authorization: 'Bearer ' + adminToken,
-        },
-      }
-    );
+    const response = await fetch('/admin/drivers/' + currentDriverId + '/approve', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + adminToken },
+    });
 
     const data = await response.json();
 
@@ -705,19 +782,14 @@ async function blockDriver() {
   if (!currentDriverId) return;
 
   try {
-    const response = await fetch(
-      '/admin/drivers/' + currentDriverId + '/block',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: 'Bearer ' + adminToken,
-        },
-        body: JSON.stringify({
-          reason: 'Bloqueado pelo admin',
-        }),
-      }
-    );
+    const response = await fetch('/admin/drivers/' + currentDriverId + '/block', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer ' + adminToken,
+      },
+      body: JSON.stringify({ reason: 'Bloqueado pelo admin' }),
+    });
 
     const data = await response.json();
 
@@ -738,15 +810,10 @@ async function rejectDriver() {
   if (!currentDriverId) return;
 
   try {
-    const response = await fetch(
-      '/admin/drivers/' + currentDriverId + '/reject',
-      {
-        method: 'POST',
-        headers: {
-          Authorization: 'Bearer ' + adminToken,
-        },
-      }
-    );
+    const response = await fetch('/admin/drivers/' + currentDriverId + '/reject', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + adminToken },
+    });
 
     const data = await response.json();
 
@@ -772,40 +839,34 @@ async function loadCurrentRide() {
     const ride = data.ride;
 
     if (!ride) {
-      tbody.innerHTML =
-        '<tr>' +
-          '<td colspan="4">Nenhuma corrida ativa.</td>' +
-        '</tr>';
+      renderRide(null);
+      updateActiveRideCard(null);
       return;
     }
 
-   renderRide(ride);
-
+    renderRide(ride);
+    updateActiveRideCard(ride);
   } catch (error) {
     tbody.innerHTML =
       '<tr>' +
-        '<td colspan="4">Erro ao carregar corrida.</td>' +
+        '<td colspan="8">Erro ao carregar corrida.</td>' +
       '</tr>';
   }
 }
- 
+
 function logoutAdmin() {
-
-  localStorage.removeItem(
-    'avuxo_admin_token'
-  );
-
-  window.location.href =
-    '/login';
-} 
+  localStorage.removeItem('avuxo_admin_token');
+  window.location.href = '/login';
+}
 
 loadDrivers();
 loadCurrentRide();
+loadRideStats();
 
 setInterval(function() {
   loadCurrentRide();
+  loadRideStats();
 }, 3000);
-
 </script>
 
 </body>
