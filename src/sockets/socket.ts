@@ -3,15 +3,10 @@ import { Server } from 'socket.io';
 export let globalIO: Server;
 
 export function registerSocket(io: Server) {
-
   globalIO = io;
 
   io.on('connection', (socket) => {
-
-    console.log(
-      '🟢 Socket conectado:',
-      socket.id,
-    );
+    console.log('🟢 Socket conectado:', socket.id);
 
     socket.emit('server:ready', {
       success: true,
@@ -19,56 +14,34 @@ export function registerSocket(io: Server) {
     });
 
     socket.on('join:admin', () => {
-
       socket.join('admin-room');
-
-      console.log(
-        '👑 Admin conectado realtime',
-      );
-
+      console.log('👑 Admin conectado realtime');
     });
 
     socket.on('join:driver', (driverId) => {
+      socket.join('drivers');
+      socket.join('driver-' + driverId);
 
-      socket.join(
-        'driver-' + driverId,
-      );
-
-      console.log(
-        '🚗 Driver conectado:',
-        driverId,
-      );
-
+      console.log('🚗 Driver conectado:', driverId);
+      console.log('📡 Driver entrou na sala drivers');
     });
 
-    socket.on('join:driver', (driverId) => {
+    socket.on('driver:online', (data) => {
+      console.log('🟢 Driver online:', data);
+    });
 
-  socket.join('drivers');
+    socket.on('driver:offline', (data) => {
+      console.log('🔴 Driver offline:', data);
+      socket.leave('drivers');
+    });
 
-  socket.join(
-    'driver-' + driverId,
-  );
-
-  console.log(
-    '🚗 Driver conectado:',
-    driverId,
-  );
-
-  console.log(
-    '📡 Driver entrou na sala drivers',
-  );
-
-});
+    socket.on('join:passenger', (passengerId) => {
+      socket.join('passenger-' + passengerId);
+      console.log('🧍 Passageiro conectado:', passengerId);
+    });
 
     socket.on('disconnect', () => {
-
-      console.log(
-        '🔴 Socket desconectado:',
-        socket.id,
-      );
-
+      console.log('🔴 Socket desconectado:', socket.id);
     });
-
   });
-
 }
