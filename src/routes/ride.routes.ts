@@ -325,7 +325,7 @@ export function registerRideRoutes(app: Express, io: Server) {
     }
 
     memoryStore.currentRide.status = 'accepted';
-    memoryStore.currentRide.acceptedAt = new Date().toISOString();
+    (memoryStore.currentRide as any).acceptedAt = new Date().toISOString();
     memoryStore.currentRide.updatedAt = new Date().toISOString();
 
     memoryStore.currentRide.driver = {
@@ -418,7 +418,7 @@ export function registerRideRoutes(app: Express, io: Server) {
     }
 
     memoryStore.currentRide.status = 'arriving';
-    memoryStore.currentRide.arrivedAt = new Date().toISOString();
+    (memoryStore.currentRide as any).arrivedAt = new Date().toISOString();
     memoryStore.currentRide.updatedAt = new Date().toISOString();
 
     emitRideUpdate(io, memoryStore.currentRide, 'ride:arrived');
@@ -439,7 +439,7 @@ export function registerRideRoutes(app: Express, io: Server) {
     }
 
     memoryStore.currentRide.status = 'in_progress';
-    memoryStore.currentRide.startedAt = new Date().toISOString();
+    (memoryStore.currentRide as any).startedAt = new Date().toISOString();
     memoryStore.currentRide.updatedAt = new Date().toISOString();
 
     emitRideUpdate(io, memoryStore.currentRide, 'ride:started');
