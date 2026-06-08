@@ -279,18 +279,28 @@ export function registerDriverRoutes(app: Express) {
     });
   });
 
-  app.get('/driver/wallet/:id', (_req, res) => {
-    return res.json({
-      success: true,
-      wallet: {
-        balance: 1247.80,
-        today: 187.50,
-        week: 1243.00,
-        month: 4872.00,
-        fee: 20,
-      },
-    });
+ app.get('/driver/wallet/:id', (req, res) => {
+  const store = memoryStore as any;
+
+  const driverId = String(req.params.id);
+
+  if (!store.driverWallets) {
+    store.driverWallets = {};
+  }
+
+  const wallet =
+    store.driverWallets[driverId] || {
+      driverId,
+      balance: 0,
+      totalFees: 0,
+      transactions: [],
+    };
+
+  return res.json({
+    success: true,
+    wallet,
   });
+});
 
   app.get('/driver/trips/:id', (_req, res) => {
     return res.json({

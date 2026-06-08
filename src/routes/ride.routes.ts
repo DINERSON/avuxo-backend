@@ -127,6 +127,62 @@ export function registerRideRoutes(app: Express, io: Server) {
     });
   });
 
+app.post('/driver/wallet/:driverId/payment', (req, res) => {
+  const store = ensureWalletStore();
+
+  const driverId = String(req.params.driverId);
+  const amount = Number(req.body.amount || 0);
+
+  if (amount <= 0) {
+    return res.status(400).json({
+      success: false,
+      message: 'Valor do pagamento inválido.',
+    });
+  }
+
+  if (!store.driverWallets[driverId]) {
+    store.driverWallets[driverId] = {
+      driverId,
+      balance: 0,
+      totalFees: 0,
+      transactions: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
+  const transaction = {
+    id: Date.now(),
+    type: 'payment',
+    title: 'Pagamento de dívida AVUXO',
+    description: req.body.note || 'Pagamento PIX confirmado pelo admin',
+    amount,
+    method: req.body.method || 'PIX',
+    driverId,
+    createdAt: new Date().toISOString(),
+  };
+
+  store.driverWallets[driverId].balance =
+    Number(store.driverWallets[driverId].balance || 0) + amount;
+
+  store.driverWallets[driverId].updatedAt = new Date().toISOString();
+  store.driverWallets[driverId].transactions.unshift(transaction);
+  store.walletTransactions.unshift(transaction);
+
+  io.emit('wallet:update', {
+    success: true,
+    wallet: store.driverWallets[driverId],
+    transaction,
+  });
+
+  return res.json({
+    success: true,
+    message: 'Pagamento confirmado com sucesso.',
+    wallet: store.driverWallets[driverId],
+    transaction,
+  });
+});
+
   app.get('/wallet/transactions', (_req, res) => {
     const store = ensureWalletStore();
 
