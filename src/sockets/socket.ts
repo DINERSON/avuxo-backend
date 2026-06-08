@@ -41,18 +41,24 @@ export function registerSocket(io: Server) {
 
     });
 
-    socket.on('join:passenger', (passengerId) => {
+    socket.on('join:driver', (driverId) => {
 
-      socket.join(
-        'passenger-' + passengerId,
-      );
+  socket.join('drivers');
 
-      console.log(
-        '🧍 Passageiro conectado:',
-        passengerId,
-      );
+  socket.join(
+    'driver-' + driverId,
+  );
 
-    });
+  console.log(
+    '🚗 Driver conectado:',
+    driverId,
+  );
+
+  console.log(
+    '📡 Driver entrou na sala drivers',
+  );
+
+});
 
     socket.on('disconnect', () => {
 
