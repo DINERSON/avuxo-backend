@@ -3,6 +3,8 @@ import { Server } from 'socket.io';
 
 import { memoryStore } from '../storage/memory.store';
 
+const AVUXO_FEE_PER_FINISHED_RIDE = 0.5;
+
 function emitRideUpdate(io: Server, ride: any) {
   io.emit('ride:update', {
     success: true,
@@ -17,6 +19,81 @@ function emitRideCleared(io: Server) {
   });
 }
 
+function ensureWalletStore() {
+  const store = memoryStore as any;
+
+  if (!store.driverWallets) {
+    store.driverWallets = {};
+  }
+
+  if (!store.walletTransactions) {
+    store.walletTransactions = [];
+  }
+
+  return store;
+}
+
+function chargeDriverRideFee(ride: any) {
+  const store = ensureWalletStore();
+
+  const driverId =
+    ride?.driver?.id ||
+    ride?.driver?.driverId ||
+    ride?.driverId ||
+    'driver-avuxo';
+
+  const driverName =
+    ride?.driver?.fullName ||
+    ride?.driver?.name ||
+    'Motorista AVUXO';
+
+  if (!store.driverWallets[driverId]) {
+    store.driverWallets[driverId] = {
+      driverId,
+      driverName,
+      balance: 0,
+      totalFees: 0,
+      transactions: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
+  const transaction = {
+    id: Date.now(),
+    type: 'ride_fee',
+    title: 'Taxa AVUXO por corrida',
+    description: 'Desconto automático de R$ 0,50 por corrida finalizada',
+    amount: -AVUXO_FEE_PER_FINISHED_RIDE,
+    fee: AVUXO_FEE_PER_FINISHED_RIDE,
+    rideId: ride?.id || ride?.rideId || Date.now(),
+    driverId,
+    driverName,
+    createdAt: new Date().toISOString(),
+  };
+
+  store.driverWallets[driverId].balance =
+    Number(store.driverWallets[driverId].balance || 0) -
+    AVUXO_FEE_PER_FINISHED_RIDE;
+
+  store.driverWallets[driverId].totalFees =
+    Number(store.driverWallets[driverId].totalFees || 0) +
+    AVUXO_FEE_PER_FINISHED_RIDE;
+
+  store.driverWallets[driverId].updatedAt = new Date().toISOString();
+  store.driverWallets[driverId].transactions.unshift(transaction);
+  store.walletTransactions.unshift(transaction);
+
+  ride.avuxoFee = AVUXO_FEE_PER_FINISHED_RIDE;
+  ride.driverWalletBalanceAfterFee = store.driverWallets[driverId].balance;
+  ride.walletTransaction = transaction;
+
+  return {
+    wallet: store.driverWallets[driverId],
+    transaction,
+  };
+}
+
 export function registerRideRoutes(app: Express, io: Server) {
   app.get('/ride/current', (_req, res) => {
     res.json({
@@ -29,6 +106,33 @@ export function registerRideRoutes(app: Express, io: Server) {
     res.json({
       success: true,
       rides: memoryStore.rideHistory,
+    });
+  });
+
+  app.get('/driver/wallet/:driverId', (req, res) => {
+    const store = ensureWalletStore();
+    const driverId = req.params.driverId;
+
+    const wallet =
+      store.driverWallets[driverId] || {
+        driverId,
+        balance: 0,
+        totalFees: 0,
+        transactions: [],
+      };
+
+    res.json({
+      success: true,
+      wallet,
+    });
+  });
+
+  app.get('/wallet/transactions', (_req, res) => {
+    const store = ensureWalletStore();
+
+    res.json({
+      success: true,
+      transactions: store.walletTransactions,
     });
   });
 
@@ -63,36 +167,28 @@ export function registerRideRoutes(app: Express, io: Server) {
 
       rideType: req.body.rideType || 'Carro',
 
-paymentMethod:
-  req.body.paymentMethod || 'PIX',
+      paymentMethod: req.body.paymentMethod || 'PIX',
 
-platform:
-  req.body.platform || 'passenger_app',
+      platform: req.body.platform || 'passenger_app',
 
-requestedAt:
-  req.body.requestedAt ||
-  new Date().toISOString(),
+      requestedAt: req.body.requestedAt || new Date().toISOString(),
 
       passenger: {
-  uid: req.body.passenger?.uid || '',
-  name: req.body.passenger?.name || 'Passageiro',
-  fullName:
-    req.body.passenger?.fullName ||
-    req.body.passenger?.name ||
-    'Passageiro',
-
-  photo: req.body.passenger?.photo || '',
-
-  email: req.body.passenger?.email || '',
-
-  phone: req.body.passenger?.phone || '',
-
-  rating: Number(
-    req.body.passenger?.rating || 5,
-  ),
-},
+        uid: req.body.passenger?.uid || '',
+        name: req.body.passenger?.name || 'Passageiro',
+        fullName:
+          req.body.passenger?.fullName ||
+          req.body.passenger?.name ||
+          'Passageiro',
+        photo: req.body.passenger?.photo || '',
+        email: req.body.passenger?.email || '',
+        phone: req.body.passenger?.phone || '',
+        rating: Number(req.body.passenger?.rating || 5),
+      },
 
       status: 'pending',
+
+      avuxoFee: 0,
 
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -105,10 +201,10 @@ requestedAt:
 
     emitRideUpdate(io, memoryStore.currentRide);
 
-   io.to('drivers').emit('ride:available', {
-  success: true,
-  ride: memoryStore.currentRide,
-});
+    io.to('drivers').emit('ride:available', {
+      success: true,
+      ride: memoryStore.currentRide,
+    });
 
     res.json({
       success: true,
@@ -131,6 +227,7 @@ requestedAt:
 
     memoryStore.currentRide.driver = {
       id: req.body.driverId || req.body.id || Date.now(),
+      driverId: req.body.driverId || req.body.id || Date.now(),
       name: req.body.name || req.body.fullName || 'Motorista AVUXO',
       fullName: req.body.fullName || req.body.name || 'Motorista AVUXO',
       phone: req.body.phone || '',
@@ -207,6 +304,8 @@ requestedAt:
     memoryStore.currentRide.finishedAt = new Date().toISOString();
     memoryStore.currentRide.updatedAt = new Date().toISOString();
 
+    const walletResult = chargeDriverRideFee(memoryStore.currentRide);
+
     memoryStore.rideHistory.unshift(memoryStore.currentRide);
 
     if (memoryStore.rideHistory.length > 200) {
@@ -216,6 +315,12 @@ requestedAt:
     const finishedRide = memoryStore.currentRide;
 
     emitRideUpdate(io, finishedRide);
+
+    io.emit('wallet:update', {
+      success: true,
+      wallet: walletResult.wallet,
+      transaction: walletResult.transaction,
+    });
 
     memoryStore.currentRide = null;
 
@@ -227,6 +332,8 @@ requestedAt:
       success: true,
       message: 'Corrida finalizada',
       ride: finishedRide,
+      wallet: walletResult.wallet,
+      transaction: walletResult.transaction,
     });
   });
 

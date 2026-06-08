@@ -23,4 +23,8 @@ export const memoryStore = {
   walletHistory: [] as WalletTransaction[],
 
   driversDatabase: [] as DriverAccount[],
+
+  driverWallets: {} as Record<string, any>,
+
+  walletTransactions: [] as any[],
 };
