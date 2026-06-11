@@ -8,6 +8,10 @@ import {
 export const memoryStore = {
   currentRide: null as Ride | null,
 
+  activeRides: {} as Record<string, Ride>,
+
+  availableRides: [] as Ride[],
+
   currentDriver: null as DriverAccount | null,
 
   driverOnline: false,
@@ -27,4 +31,8 @@ export const memoryStore = {
   driverWallets: {} as Record<string, any>,
 
   walletTransactions: [] as any[],
+
+  rideReviews: [] as any[],
+
+  driverReviews: [] as any[],
 };

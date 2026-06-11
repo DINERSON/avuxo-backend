@@ -5,50 +5,110 @@ import { memoryStore } from '../storage/memory.store';
 
 const AVUXO_FEE_PER_FINISHED_RIDE = 0.5;
 
+function rideKey(rideId: any) {
+  return String(rideId || '');
+}
+
+function getRide(req: any) {
+  const id =
+    req.params?.rideId ||
+    req.body?.rideId ||
+    req.query?.rideId;
+
+  if (id && (memoryStore.activeRides as any)[rideKey(id)]) {
+    return (memoryStore.activeRides as any)[rideKey(id)];
+  }
+
+  return memoryStore.currentRide;
+}
+
+function saveRide(ride: any) {
+  const id = rideKey(ride.rideId || ride.id);
+
+  (memoryStore.activeRides as any)[id] = ride;
+
+  memoryStore.currentRide = ride as any;
+
+  if (!memoryStore.ridesDatabase.some((r: any) => String(r.rideId || r.id) === id)) {
+    memoryStore.ridesDatabase.unshift(ride as any);
+  }
+}
+
+function removeAvailableRide(rideId: any) {
+  const id = rideKey(rideId);
+
+  memoryStore.availableRides = memoryStore.availableRides.filter(
+    (ride: any) => String(ride.rideId || ride.id) !== id,
+  );
+}
+
 function emitRideUpdate(io: Server, ride: any, eventName = 'ride:update') {
-  io.emit(eventName, {
-    success: true,
-    ride,
-  });
+  const id = rideKey(ride?.rideId || ride?.id);
 
-  io.emit('ride:update', {
+  const payload = {
     success: true,
+    rideId: id,
     ride,
-  });
+  };
 
-  io.emit('ride:updated', {
-    success: true,
-    ride,
-  });
+  io.emit(eventName, payload);
+  io.emit('ride:update', payload);
+  io.emit('ride:updated', payload);
+  io.emit('ride:current', payload);
 
-  io.emit('ride:current', {
-    success: true,
-    ride,
-  });
+  if (id) {
+    io.to(`ride-${id}`).emit(eventName, payload);
+    io.to(`ride-${id}`).emit('ride:update', payload);
+    io.to(`ride-${id}`).emit('ride:updated', payload);
+    io.to(`ride-${id}`).emit('ride:current', payload);
+  }
 }
 
-function emitRideCleared(io: Server) {
-  io.emit('ride:update', {
-    success: true,
-    ride: null,
-  });
+function emitRideCleared(io: Server, rideId?: any) {
+  const id = rideKey(rideId);
 
-  io.emit('ride:current', {
+  const payload = {
     success: true,
+    rideId: id,
     ride: null,
-  });
+  };
+
+  io.emit('ride:update', payload);
+  io.emit('ride:current', payload);
+
+  if (id) {
+    io.to(`ride-${id}`).emit('ride:update', payload);
+    io.to(`ride-${id}`).emit('ride:current', payload);
+  }
 }
 
-function emitChatCleared(io: Server) {
-  io.emit('chat:updated', {
+function emitChatCleared(io: Server, rideId?: any) {
+  const id = rideKey(rideId);
+
+  const payload = {
     success: true,
+    rideId: id,
     messages: [],
     chat: [],
-  });
+  };
+
+  io.emit('chat:updated', payload);
+
+  if (id) {
+    io.to(`ride-${id}`).emit('chat:updated', payload);
+  }
 }
 
-function ensureWalletStore() {
+function ensureStore() {
   const store = memoryStore as any;
+
+  if (!store.activeRides) {
+    store.activeRides = {};
+  }
+
+  if (!store.availableRides) {
+    store.availableRides = [];
+  }
 
   if (!store.driverWallets) {
     store.driverWallets = {};
@@ -66,11 +126,19 @@ function ensureWalletStore() {
     store.ridesDatabase = [];
   }
 
+  if (!store.rideReviews) {
+    store.rideReviews = [];
+  }
+
+  if (!store.driverReviews) {
+    store.driverReviews = [];
+  }
+
   return store;
 }
 
 function chargeDriverRideFee(ride: any) {
-  const store = ensureWalletStore();
+  const store = ensureStore();
 
   const driverId =
     ride?.driver?.id ||
@@ -131,10 +199,44 @@ function chargeDriverRideFee(ride: any) {
 }
 
 export function registerRideRoutes(app: Express, io: Server) {
+  ensureStore();
+
   app.get('/ride/current', (_req, res) => {
     res.json({
       success: true,
       ride: memoryStore.currentRide || null,
+    });
+  });
+
+  app.get('/ride/:rideId', (req, res) => {
+    const rideId = rideKey(req.params.rideId);
+    const ride = (memoryStore.activeRides as any)[rideId];
+
+    if (!ride) {
+      return res.status(404).json({
+        success: false,
+        message: 'Corrida não encontrada.',
+      });
+    }
+
+    return res.json({
+      success: true,
+      ride,
+    });
+  });
+
+  app.get('/rides/active', (_req, res) => {
+    res.json({
+      success: true,
+      rides: Object.values(memoryStore.activeRides || {}),
+    });
+  });
+
+  app.get('/ride/available', (_req, res) => {
+    res.json({
+      success: true,
+      rides: memoryStore.availableRides || [],
+      ride: memoryStore.availableRides?.[0] || null,
     });
   });
 
@@ -146,7 +248,7 @@ export function registerRideRoutes(app: Express, io: Server) {
   });
 
   app.get('/driver/wallet/:driverId', (req, res) => {
-    const store = ensureWalletStore();
+    const store = ensureStore();
     const driverId = req.params.driverId;
 
     const wallet =
@@ -164,7 +266,7 @@ export function registerRideRoutes(app: Express, io: Server) {
   });
 
   app.post('/driver/wallet/:driverId/payment', (req, res) => {
-    const store = ensureWalletStore();
+    const store = ensureStore();
 
     const driverId = String(req.params.driverId);
     const amount = Number(req.body.amount || 0);
@@ -220,7 +322,7 @@ export function registerRideRoutes(app: Express, io: Server) {
   });
 
   app.get('/wallet/transactions', (_req, res) => {
-    const store = ensureWalletStore();
+    const store = ensureStore();
 
     res.json({
       success: true,
@@ -244,6 +346,7 @@ export function registerRideRoutes(app: Express, io: Server) {
       originName:
         req.body.originName ||
         req.body.pickupAddress ||
+        req.body.originAddress ||
         'Origem AVUXO',
 
       destinationName:
@@ -285,6 +388,7 @@ export function registerRideRoutes(app: Express, io: Server) {
         rating: Number(req.body.passenger?.rating || 5),
       },
 
+      declinedDrivers: [],
       status: 'pending',
       avuxoFee: 0,
 
@@ -294,20 +398,22 @@ export function registerRideRoutes(app: Express, io: Server) {
       chat: [],
     };
 
-    memoryStore.currentRide = ride as any;
+    saveRide(ride);
 
-    if (!memoryStore.ridesDatabase) {
-      memoryStore.ridesDatabase = [];
-    }
-
-    memoryStore.ridesDatabase.unshift(ride as any);
+    memoryStore.availableRides.unshift(ride as any);
 
     io.to('drivers').emit('ride:available', {
       success: true,
-      ride: memoryStore.currentRide,
+      rideId: ride.rideId,
+      ride,
     });
 
-    emitRideUpdate(io, memoryStore.currentRide, 'ride:requested');
+    io.to('drivers').emit('ride:available:list', {
+      success: true,
+      rides: memoryStore.availableRides,
+    });
+
+    emitRideUpdate(io, ride, 'ride:requested');
 
     res.json({
       success: true,
@@ -317,167 +423,224 @@ export function registerRideRoutes(app: Express, io: Server) {
   });
 
   app.post('/ride/accept', (req, res) => {
-    if (!memoryStore.currentRide) {
+    const ride = getRide(req) as any;
+
+    if (!ride) {
       return res.status(404).json({
         success: false,
         message: 'Nenhuma corrida disponível',
       });
     }
 
-    memoryStore.currentRide.status = 'accepted';
-    (memoryStore.currentRide as any).acceptedAt = new Date().toISOString();
-    memoryStore.currentRide.updatedAt = new Date().toISOString();
+    ride.status = 'accepted';
+    ride.acceptedAt = new Date().toISOString();
+    ride.updatedAt = new Date().toISOString();
 
-    memoryStore.currentRide.driver = {
+    ride.driver = {
       id: req.body.driverId || req.body.id || Date.now(),
       driverId: req.body.driverId || req.body.id || Date.now(),
-
       name: req.body.name || req.body.fullName || 'Motorista AVUXO',
       fullName: req.body.fullName || req.body.name || 'Motorista AVUXO',
-
       phone: req.body.phone || '',
-
       vehicle:
         req.body.vehicle ||
         req.body.car ||
         req.body.carModel ||
         req.body.vehicleName ||
         'Veículo AVUXO',
-
       car:
         req.body.car ||
         req.body.vehicle ||
         req.body.carModel ||
         'Veículo AVUXO',
-
       carBrand: req.body.carBrand || req.body.brand || '',
       carModel: req.body.carModel || req.body.model || '',
       carColor: req.body.carColor || req.body.color || '',
-
       plate:
         req.body.plate ||
         req.body.carPlate ||
         req.body.licensePlate ||
         '',
-
       carPlate:
         req.body.carPlate ||
         req.body.plate ||
         req.body.licensePlate ||
         '',
-
       photo:
         req.body.photo ||
         req.body.driverPhoto ||
         req.body.profilePhoto ||
         '',
-
       driverPhoto:
         req.body.driverPhoto ||
         req.body.photo ||
         req.body.profilePhoto ||
         '',
-
       vehiclePhoto:
         req.body.vehiclePhoto ||
         req.body.carPhoto ||
         req.body.vehicleImage ||
         '',
-
       carPhoto:
         req.body.carPhoto ||
         req.body.vehiclePhoto ||
         req.body.vehicleImage ||
         '',
-
       rating: Number(req.body.rating || req.body.driverRating || 5),
-
       lat: Number(req.body.lat || req.body.latitude || 0),
       lng: Number(req.body.lng || req.body.longitude || 0),
       bearing: Number(req.body.bearing || 0),
-
       eta: req.body.eta || 'Chegando em instantes',
       updatedAt: new Date().toISOString(),
     };
 
-    emitRideUpdate(io, memoryStore.currentRide, 'ride:accepted');
+    saveRide(ride);
+    removeAvailableRide(ride.rideId || ride.id);
+
+    emitRideUpdate(io, ride, 'ride:accepted');
+
+    io.to('drivers').emit('ride:available:list', {
+      success: true,
+      rides: memoryStore.availableRides,
+    });
 
     res.json({
       success: true,
       message: 'Corrida aceita',
-      ride: memoryStore.currentRide,
+      ride,
+    });
+  });
+
+  app.post('/ride/decline', (req, res) => {
+    const ride = getRide(req) as any;
+
+    if (!ride) {
+      return res.status(404).json({
+        success: false,
+        message: 'Nenhuma corrida disponível',
+      });
+    }
+
+    const driverId =
+      req.body.driverId ||
+      req.body.id ||
+      req.body.driver?.id ||
+      'driver-avuxo';
+
+    if (!Array.isArray(ride.declinedDrivers)) {
+      ride.declinedDrivers = [];
+    }
+
+    if (!ride.declinedDrivers.includes(driverId)) {
+      ride.declinedDrivers.push(driverId);
+    }
+
+    ride.status = 'pending';
+    ride.updatedAt = new Date().toISOString();
+
+    saveRide(ride);
+
+    io.to('drivers').emit('ride:available', {
+      success: true,
+      rideId: ride.rideId || ride.id,
+      ride,
+      declinedBy: driverId,
+    });
+
+    emitRideUpdate(io, ride, 'ride:declined');
+
+    res.json({
+      success: true,
+      message: 'Corrida recusada por este motorista',
+      ride,
     });
   });
 
   app.post('/ride/arrived', (_req, res) => {
-    if (!memoryStore.currentRide) {
+    const req: any = _req;
+    const ride = getRide(req) as any;
+
+    if (!ride) {
       return res.status(404).json({
         success: false,
         message: 'Nenhuma corrida ativa',
       });
     }
 
-    memoryStore.currentRide.status = 'arriving';
-    (memoryStore.currentRide as any).arrivedAt = new Date().toISOString();
-    memoryStore.currentRide.updatedAt = new Date().toISOString();
+    ride.status = 'arriving';
+    ride.arrivedAt = new Date().toISOString();
+    ride.updatedAt = new Date().toISOString();
 
-    emitRideUpdate(io, memoryStore.currentRide, 'ride:arrived');
+    saveRide(ride);
+    emitRideUpdate(io, ride, 'ride:arrived');
 
     res.json({
       success: true,
       message: 'Motorista chegou ao passageiro',
-      ride: memoryStore.currentRide,
+      ride,
     });
   });
 
   app.post('/ride/start', (_req, res) => {
-    if (!memoryStore.currentRide) {
+    const req: any = _req;
+    const ride = getRide(req) as any;
+
+    if (!ride) {
       return res.status(404).json({
         success: false,
         message: 'Nenhuma corrida ativa',
       });
     }
 
-    memoryStore.currentRide.status = 'in_progress';
-    (memoryStore.currentRide as any).startedAt = new Date().toISOString();
-    memoryStore.currentRide.updatedAt = new Date().toISOString();
+    ride.status = 'in_progress';
+    ride.startedAt = new Date().toISOString();
+    ride.updatedAt = new Date().toISOString();
 
-    emitRideUpdate(io, memoryStore.currentRide, 'ride:started');
+    saveRide(ride);
+    emitRideUpdate(io, ride, 'ride:started');
 
     res.json({
       success: true,
       message: 'Corrida iniciada',
-      ride: memoryStore.currentRide,
+      ride,
     });
   });
 
   app.post('/ride/finish', (_req, res) => {
-    if (!memoryStore.currentRide) {
+    const req: any = _req;
+    const ride = getRide(req) as any;
+
+    if (!ride) {
       return res.status(404).json({
         success: false,
         message: 'Nenhuma corrida ativa',
       });
     }
 
-    memoryStore.currentRide.status = 'finished';
-    memoryStore.currentRide.finishedAt = new Date().toISOString();
-    memoryStore.currentRide.updatedAt = new Date().toISOString();
+    ride.status = 'finished';
+    ride.finishedAt = new Date().toISOString();
+    ride.updatedAt = new Date().toISOString();
 
-    const walletResult = chargeDriverRideFee(memoryStore.currentRide);
+    const walletResult = chargeDriverRideFee(ride);
 
-    if (!memoryStore.rideHistory) {
-      memoryStore.rideHistory = [];
-    }
-
-    memoryStore.rideHistory.unshift(memoryStore.currentRide);
+    memoryStore.rideHistory.unshift(ride as any);
 
     if (memoryStore.rideHistory.length > 200) {
       memoryStore.rideHistory = memoryStore.rideHistory.slice(0, 200);
     }
 
-    const finishedRide = memoryStore.currentRide;
+    delete (memoryStore.activeRides as any)[rideKey(ride.rideId || ride.id)];
+    removeAvailableRide(ride.rideId || ride.id);
 
-    emitRideUpdate(io, finishedRide, 'ride:finished');
+    if (
+      memoryStore.currentRide &&
+      String(memoryStore.currentRide.rideId || memoryStore.currentRide.id) ===
+        String(ride.rideId || ride.id)
+    ) {
+      memoryStore.currentRide = null;
+    }
+
+    emitRideUpdate(io, ride, 'ride:finished');
 
     io.emit('wallet:update', {
       success: true,
@@ -485,62 +648,118 @@ export function registerRideRoutes(app: Express, io: Server) {
       transaction: walletResult.transaction,
     });
 
-    emitChatCleared(io);
-
-    memoryStore.currentRide = null;
+    emitChatCleared(io, ride.rideId || ride.id);
 
     setTimeout(() => {
-      emitRideCleared(io);
+      emitRideCleared(io, ride.rideId || ride.id);
     }, 1200);
 
     res.json({
       success: true,
       message: 'Corrida finalizada',
-      ride: finishedRide,
+      ride,
       wallet: walletResult.wallet,
       transaction: walletResult.transaction,
     });
   });
 
   app.post('/ride/cancel', (req, res) => {
-    if (!memoryStore.currentRide) {
+    const ride = getRide(req) as any;
+
+    if (!ride) {
       return res.status(404).json({
         success: false,
         message: 'Nenhuma corrida ativa',
       });
     }
 
-    memoryStore.currentRide.status = 'cancelled';
-    memoryStore.currentRide.cancelReason = req.body.reason || 'Cancelada';
-    memoryStore.currentRide.cancelledBy =
+    ride.status = 'cancelled';
+    ride.cancelReason = req.body.reason || 'Cancelada';
+    ride.cancelledBy =
       req.body.cancelledBy || req.body.canceledBy || 'system';
-    memoryStore.currentRide.canceledBy =
+    ride.canceledBy =
       req.body.canceledBy || req.body.cancelledBy || 'system';
-    memoryStore.currentRide.cancelledAt = new Date().toISOString();
-    memoryStore.currentRide.updatedAt = new Date().toISOString();
+    ride.cancelledAt = new Date().toISOString();
+    ride.updatedAt = new Date().toISOString();
 
-    if (!memoryStore.rideHistory) {
-      memoryStore.rideHistory = [];
+    memoryStore.rideHistory.unshift(ride as any);
+
+    delete (memoryStore.activeRides as any)[rideKey(ride.rideId || ride.id)];
+    removeAvailableRide(ride.rideId || ride.id);
+
+    if (
+      memoryStore.currentRide &&
+      String(memoryStore.currentRide.rideId || memoryStore.currentRide.id) ===
+        String(ride.rideId || ride.id)
+    ) {
+      memoryStore.currentRide = null;
     }
 
-    memoryStore.rideHistory.unshift(memoryStore.currentRide);
-
-    const cancelledRide = memoryStore.currentRide;
-
-    emitRideUpdate(io, cancelledRide, 'ride:cancelled');
-
-    emitChatCleared(io);
-
-    memoryStore.currentRide = null;
+    emitRideUpdate(io, ride, 'ride:cancelled');
+    emitChatCleared(io, ride.rideId || ride.id);
 
     setTimeout(() => {
-      emitRideCleared(io);
+      emitRideCleared(io, ride.rideId || ride.id);
     }, 1200);
 
     res.json({
       success: true,
       message: 'Corrida cancelada',
-      ride: cancelledRide,
+      ride,
+    });
+  });
+
+  app.post('/ride/review', (req, res) => {
+    const store = ensureStore();
+
+    const review = {
+      id: Date.now(),
+      rideId: req.body.rideId || req.body.id || null,
+      rating: Number(req.body.rating || 5),
+      comment: req.body.comment || '',
+      from: 'passenger',
+      to: 'driver',
+      createdAt: new Date().toISOString(),
+    };
+
+    store.rideReviews.unshift(review);
+
+    io.emit('ride:reviewed', {
+      success: true,
+      review,
+    });
+
+    res.json({
+      success: true,
+      message: 'Avaliação enviada com sucesso',
+      review,
+    });
+  });
+
+  app.post('/ride/driver-review', (req, res) => {
+    const store = ensureStore();
+
+    const review = {
+      id: Date.now(),
+      rideId: req.body.rideId || req.body.id || null,
+      rating: Number(req.body.rating || 5),
+      comment: req.body.comment || '',
+      from: 'driver',
+      to: 'passenger',
+      createdAt: new Date().toISOString(),
+    };
+
+    store.driverReviews.unshift(review);
+
+    io.emit('ride:driver-reviewed', {
+      success: true,
+      review,
+    });
+
+    res.json({
+      success: true,
+      message: 'Avaliação do passageiro enviada com sucesso',
+      review,
     });
   });
 }
