@@ -453,7 +453,7 @@ if (!adminToken) {
 
 const socket = io();
 
-socket.emit('admin:join');
+socket.emit('join:admin');
 
 socket.on('server:ready', function(data) {
   console.log('SERVER READY', data);
@@ -864,7 +864,10 @@ async function loadCurrentRide() {
         '<tr>' +
           '<td colspan="8">' +
             '<b>RideId:</b> ' + (ride.rideId || ride.id) +
-            ' | <b>Motorista:</b> ' + (ride.driver?.fullName || ride.driver?.name || 'Aguardando') +
+            ' | <b>Passageiro:</b> ' + (ride.passenger?.fullName || ride.passenger?.name || '-') +
+            ' | <b>Email:</b> ' + (ride.passenger?.email || '-') +
+            ' | <b>Telefone:</b> ' + (ride.passenger?.phone || '-') +
+            '<br><b>Motorista:</b> ' + (ride.driver?.fullName || ride.driver?.name || 'Aguardando') +
             ' | <b>Telefone:</b> ' + (ride.driver?.phone || '-') +
             ' | <b>Placa:</b> ' + (ride.driver?.carPlate || ride.driver?.plate || '-') +
           '</td>' +
@@ -875,31 +878,7 @@ async function loadCurrentRide() {
     console.error(error);
 
     tbody.innerHTML =
-      '<tr>' +
-        '<td colspan="8">Erro ao carregar corridas ativas.</td>' +
-      '</tr>';
-  }
-} {
-  const tbody = document.getElementById('ridesTable');
-
-  try {
-    const response = await fetch('/ride/current');
-    const data = await response.json();
-    const ride = data.ride;
-
-    if (!ride) {
-      renderRide(null);
-      updateActiveRideCard(null);
-      return;
-    }
-
-    renderRide(ride);
-    updateActiveRideCard(ride);
-  } catch (error) {
-    tbody.innerHTML =
-      '<tr>' +
-        '<td colspan="8">Erro ao carregar corrida.</td>' +
-      '</tr>';
+      '<tr><td colspan="8">Erro ao carregar corridas ativas.</td></tr>';
   }
 }
 
