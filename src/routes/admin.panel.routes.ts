@@ -834,6 +834,55 @@ async function loadCurrentRide() {
   const tbody = document.getElementById('ridesTable');
 
   try {
+    const response = await fetch('/rides/active');
+    const data = await response.json();
+
+    const rides = data.rides || [];
+
+    if (!rides.length) {
+      tbody.innerHTML =
+        '<tr><td colspan="8">Nenhuma corrida ativa.</td></tr>';
+
+      document.getElementById('activeRidesCount').textContent = '0';
+      return;
+    }
+
+    document.getElementById('activeRidesCount').textContent = rides.length;
+
+    tbody.innerHTML = rides.map(function(ride) {
+      return (
+        '<tr>' +
+          '<td>' + (ride.passenger?.fullName || ride.passenger?.name || 'Passageiro') + '</td>' +
+          '<td>' + (ride.rideType || '-') + '</td>' +
+          '<td>' + (ride.originName || '-') + '</td>' +
+          '<td>' + (ride.destinationName || '-') + '</td>' +
+          '<td>' + (ride.distanceText || '-') + '</td>' +
+          '<td>' + (ride.eta || '-') + '</td>' +
+          '<td>' + money(ride.total || ride.price || 0) + '</td>' +
+          '<td><span class="badge">' + (ride.status || 'pending') + '</span></td>' +
+        '</tr>' +
+        '<tr>' +
+          '<td colspan="8">' +
+            '<b>RideId:</b> ' + (ride.rideId || ride.id) +
+            ' | <b>Motorista:</b> ' + (ride.driver?.fullName || ride.driver?.name || 'Aguardando') +
+            ' | <b>Telefone:</b> ' + (ride.driver?.phone || '-') +
+            ' | <b>Placa:</b> ' + (ride.driver?.carPlate || ride.driver?.plate || '-') +
+          '</td>' +
+        '</tr>'
+      );
+    }).join('');
+  } catch (error) {
+    console.error(error);
+
+    tbody.innerHTML =
+      '<tr>' +
+        '<td colspan="8">Erro ao carregar corridas ativas.</td>' +
+      '</tr>';
+  }
+} {
+  const tbody = document.getElementById('ridesTable');
+
+  try {
     const response = await fetch('/ride/current');
     const data = await response.json();
     const ride = data.ride;
