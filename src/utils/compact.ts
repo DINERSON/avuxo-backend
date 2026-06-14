@@ -30,17 +30,8 @@ export function compactDriver(driver: DriverAccount) {
 
     createdAt: driver.createdAt,
 
-    driverPhoto:
-      driver.driverPhoto &&
-      !String(driver.driverPhoto).startsWith('data:')
-        ? driver.driverPhoto
-        : 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=500',
-
-    vehiclePhoto:
-      driver.vehiclePhoto &&
-      !String(driver.vehiclePhoto).startsWith('data:')
-        ? driver.vehiclePhoto
-        : 'https://images.unsplash.com/photo-1550355291-bbee04a92027?q=80&w=700',
+    driverPhoto: driver.driverPhoto || '',
+    vehiclePhoto: driver.vehiclePhoto || '',
   };
 }
 
@@ -66,15 +57,34 @@ export function compactRide(ride: Ride) {
     createdAt: ride.createdAt,
     updatedAt: ride.updatedAt,
 
+    acceptedAt: ride.acceptedAt,
+    arrivedAt: ride.arrivedAt,
+    startedAt: ride.startedAt,
+    finishedAt: ride.finishedAt,
+
     driver: ride.driver
       ? {
           id: ride.driver.id,
           name: ride.driver.name,
           fullName: ride.driver.fullName,
+
           vehicle: ride.driver.vehicle,
           car: ride.driver.car,
+
           plate: ride.driver.plate,
           carPlate: ride.driver.carPlate,
+
+          driverPhoto: ride.driver.driverPhoto,
+          vehiclePhoto: ride.driver.vehiclePhoto,
+
+          rating: ride.driver.rating,
+
+          lat: ride.driver.lat,
+          lng: ride.driver.lng,
+          latitude: ride.driver.latitude,
+          longitude: ride.driver.longitude,
+
+          eta: ride.driver.eta,
         }
       : null,
   };

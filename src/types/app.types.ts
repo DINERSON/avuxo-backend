@@ -7,10 +7,14 @@ export type RideStatus =
   | 'declined'
   | 'cancelled';
 
-export type ChatSender = 'passenger' | 'driver';
+export type ChatSender =
+  | 'passenger'
+  | 'driver'
+  | 'system';
 
 export interface ChatMessage {
   id: number;
+  rideId?: string;
   sender: ChatSender;
   from: ChatSender;
   role: ChatSender;
@@ -30,8 +34,8 @@ export interface RideReview {
 }
 
 export interface Ride {
-  id: number;
-  rideId: number;
+  id: string;
+  rideId: string;
 
   originLat: number;
   originLng: number;
@@ -55,11 +59,20 @@ export interface Ride {
 
   passenger?: any;
   driver?: any;
+  driverId?: string;
 
   status: RideStatus;
 
+  paymentMethod?: string;
+  platform?: string;
+
   createdAt: string;
   updatedAt: string;
+
+  acceptedAt?: string;
+  arrivedAt?: string;
+  startedAt?: string;
+  finishedAt?: string;
 
   chat: ChatMessage[];
 
@@ -70,7 +83,13 @@ export interface Ride {
   cancelReason?: string;
 
   cancelledAt?: string;
-  finishedAt?: string;
+
+  avuxoFee?: number;
+  driverWalletBalanceAfterFee?: number;
+
+  walletTransaction?: any;
+
+  declinedDrivers?: string[];
 }
 
 export interface SavedAddress {
@@ -90,10 +109,15 @@ export interface SavedAddress {
 export interface WalletTransaction {
   id: number;
 
-  type: 'credit' | 'debit';
+  type: string;
 
   title: string;
   amount: number;
+
+  description?: string;
+  fee?: number;
+  rideId?: string;
+  driverId?: string;
 
   createdAt: string;
 }
@@ -105,7 +129,7 @@ export type DriverStatus =
   | 'blocked';
 
 export interface DriverAccount {
-  id: number;
+  id: string;
 
   fullName: string;
   email: string;
@@ -150,6 +174,8 @@ export interface DriverAccount {
   blocked: boolean;
 
   blockedReason: string;
+
+  walletDebt?: number;
 
   createdAt: string;
 }

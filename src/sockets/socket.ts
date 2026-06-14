@@ -39,7 +39,11 @@ function getCurrentRide(rideId?: any) {
 }
 
 function getChatList(rideId: any) {
-  const id = rideKey(rideId) || 'global';
+  const id = rideKey(rideId);
+
+  if (!id) {
+    return [];
+  }
 
   const ride = getRideById(id) as any;
 
@@ -59,7 +63,10 @@ function getChatList(rideId: any) {
 }
 
 function emitChat(io: Server, rideId: any) {
-  const id = rideKey(rideId) || 'global';
+  const id = rideKey(rideId);
+
+  if (!id) return;
+
   const messages = getChatList(id);
 
   const payload = {
@@ -70,9 +77,6 @@ function emitChat(io: Server, rideId: any) {
   };
 
   io.to(`ride-${id}`).emit('chat:updated', payload);
-  io.to(`ride-${id}`).emit('chat:update', payload);
-  io.to(`ride-${id}`).emit('chat:message', payload);
-
   io.to('admin').emit('chat:updated', payload);
   io.to('admins').emit('chat:updated', payload);
 }
@@ -99,7 +103,17 @@ function emitRideCurrent(socket: any, rideId?: any) {
 }
 
 function emitChatCurrent(socket: any, rideId?: any) {
-  const id = rideKey(rideId) || 'global';
+  const id = rideKey(rideId);
+
+  if (!id) {
+    socket.emit('chat:updated', {
+      success: true,
+      rideId: null,
+      messages: [],
+      chat: [],
+    });
+    return;
+  }
 
   socket.emit('chat:updated', {
     success: true,
@@ -107,6 +121,22 @@ function emitChatCurrent(socket: any, rideId?: any) {
     messages: getChatList(id),
     chat: getChatList(id),
   });
+}
+
+function getDriverId(data: any) {
+  if (data && typeof data === 'object') {
+    return String(data.driverId || data.id || '').trim();
+  }
+
+  return String(data || '').trim();
+}
+
+function getPassengerId(data: any) {
+  if (data && typeof data === 'object') {
+    return String(data.passengerId || data.uid || data.id || '').trim();
+  }
+
+  return String(data || '').trim();
 }
 
 export function registerSocket(io: Server) {
@@ -119,8 +149,6 @@ export function registerSocket(io: Server) {
       success: true,
       message: 'AVUXO realtime conectado',
     });
-
-    emitRideCurrent(socket);
 
     socket.on('join:admin', () => {
       socket.join('admin');
@@ -161,34 +189,43 @@ export function registerSocket(io: Server) {
     });
 
     socket.on('join:driver', (data) => {
-      const driverId =
-        typeof data === 'object'
-          ? data?.driverId || data?.id || 'driver-avuxo'
-          : data || 'driver-avuxo';
+      const driverId = getDriverId(data);
 
-      socket.join('drivers');
+      if (!driverId) return;
+
       socket.join(`driver-${driverId}`);
 
       console.log('🚗 Driver conectado:', driverId);
     });
 
     socket.on('driver:join', (data) => {
-      const driverId =
-        typeof data === 'object'
-          ? data?.driverId || data?.id || 'driver-avuxo'
-          : data || 'driver-avuxo';
+      const driverId = getDriverId(data);
 
-      socket.join('drivers');
+      if (!driverId) return;
+
       socket.join(`driver-${driverId}`);
 
       console.log('🚗 Driver conectado:', driverId);
     });
 
     socket.on('driver:online', (data) => {
-      const driverId = data?.driverId || data?.id || 'driver-avuxo';
+      const driverId = getDriverId(data);
+
+      if (!driverId) return;
+
+      socket.data.driverId = driverId;
+      socket.data.driverOnline = true;
 
       socket.join('drivers');
       socket.join(`driver-${driverId}`);
+
+      const driver = memoryStore.driversDatabase?.find(
+        (item: any) => String(item.id) === String(driverId),
+      );
+
+      if (driver) {
+        driver.online = true;
+      }
 
       console.log('🟢 Driver online:', driverId);
 
@@ -196,24 +233,33 @@ export function registerSocket(io: Server) {
         success: true,
         rides: memoryStore.availableRides || [],
       });
-
-      emitRideCurrent(socket);
     });
 
     socket.on('driver:offline', (data) => {
-      const driverId = data?.driverId || data?.id || 'driver-avuxo';
+      const driverId = getDriverId(data) || socket.data.driverId;
 
-      console.log('🔴 Driver offline:', driverId);
+      if (driverId) {
+        const driver = memoryStore.driversDatabase?.find(
+          (item: any) => String(item.id) === String(driverId),
+        );
 
+        if (driver) {
+          driver.online = false;
+        }
+
+        socket.leave(`driver-${driverId}`);
+      }
+
+      socket.data.driverOnline = false;
       socket.leave('drivers');
-      socket.leave(`driver-${driverId}`);
+
+      console.log('🔴 Driver offline:', driverId || socket.id);
     });
 
     socket.on('join:passenger', (data) => {
-      const passengerId =
-        typeof data === 'object'
-          ? data?.passengerId || data?.uid || data?.id || 'passenger-avuxo'
-          : data || 'passenger-avuxo';
+      const passengerId = getPassengerId(data);
+
+      if (!passengerId) return;
 
       socket.join('passengers');
       socket.join(`passenger-${passengerId}`);
@@ -222,17 +268,14 @@ export function registerSocket(io: Server) {
     });
 
     socket.on('passenger:join', (data) => {
-      const passengerId =
-        typeof data === 'object'
-          ? data?.passengerId || data?.uid || data?.id || 'passenger-avuxo'
-          : data || 'passenger-avuxo';
+      const passengerId = getPassengerId(data);
+
+      if (!passengerId) return;
 
       socket.join('passengers');
       socket.join(`passenger-${passengerId}`);
 
       console.log('🧍 Passageiro conectado:', passengerId);
-
-      emitRideCurrent(socket);
     });
 
     socket.on('ride:get-current', (data) => {
@@ -247,119 +290,85 @@ export function registerSocket(io: Server) {
 
     socket.on('driver:location', (data) => {
       const rideId = rideKey(data?.rideId || data?.ride?.rideId);
-      const ride = getCurrentRide(rideId) as any;
 
-      if (ride) {
-        ride.driver = {
-          ...(ride.driver || {}),
-          id: data?.driverId || ride.driver?.id || ride.driverId || 'driver-avuxo',
-          driverId:
-            data?.driverId ||
-            ride.driver?.driverId ||
-            ride.driverId ||
-            'driver-avuxo',
-          lat: Number(data?.lat ?? data?.latitude ?? ride.driver?.lat ?? 0),
-          lng: Number(data?.lng ?? data?.longitude ?? ride.driver?.lng ?? 0),
-          latitude: Number(data?.lat ?? data?.latitude ?? ride.driver?.lat ?? 0),
-          longitude: Number(data?.lng ?? data?.longitude ?? ride.driver?.lng ?? 0),
-          bearing: Number(data?.bearing ?? ride.driver?.bearing ?? 0),
-          updatedAt: new Date().toISOString(),
-        };
+      if (!rideId) return;
 
-        ride.updatedAt = new Date().toISOString();
+      const ride = getRideById(rideId) as any;
 
-        if (ride.rideId || ride.id) {
-          (memoryStore.activeRides as any)[String(ride.rideId || ride.id)] = ride;
-        }
-      }
+      if (!ride) return;
 
-      const finalRideId = rideKey(rideId || ride?.rideId || ride?.id);
+      const driverId =
+        data?.driverId ||
+        ride.driver?.driverId ||
+        ride.driver?.id ||
+        ride.driverId ||
+        socket.data.driverId ||
+        '';
+
+      const lat = Number(data?.lat ?? data?.latitude ?? 0);
+      const lng = Number(data?.lng ?? data?.longitude ?? 0);
+
+      if (!lat || !lng) return;
+
+      ride.driver = {
+        ...(ride.driver || {}),
+        id: driverId,
+        driverId,
+        lat,
+        lng,
+        latitude: lat,
+        longitude: lng,
+        bearing: Number(data?.bearing ?? ride.driver?.bearing ?? 0),
+        updatedAt: new Date().toISOString(),
+      };
+
+      ride.driverId = driverId;
+      ride.updatedAt = new Date().toISOString();
+
+      (memoryStore.activeRides as any)[String(ride.rideId || ride.id)] = ride;
 
       const payload = {
         success: true,
-        rideId: finalRideId || null,
-        driverId: data?.driverId || ride?.driverId || 'driver-avuxo',
-        lat: Number(data?.lat ?? data?.latitude ?? 0),
-        lng: Number(data?.lng ?? data?.longitude ?? 0),
-        latitude: Number(data?.lat ?? data?.latitude ?? 0),
-        longitude: Number(data?.lng ?? data?.longitude ?? 0),
-        bearing: Number(data?.bearing ?? 0),
-        updatedAt: new Date().toISOString(),
-        driver: ride?.driver || data,
+        rideId,
+        driverId,
+        lat,
+        lng,
+        latitude: lat,
+        longitude: lng,
+        bearing: ride.driver.bearing,
+        updatedAt: ride.driver.updatedAt,
+        driver: ride.driver,
         ride,
       };
 
-      if (finalRideId) {
-        io.to(`ride-${finalRideId}`).emit('driver:location', payload);
-        io.to(`ride-${finalRideId}`).emit('ride:tracking', payload);
-        io.to(`ride-${finalRideId}`).emit('ride:update', {
-          success: true,
-          rideId: finalRideId,
-          ride,
-        });
-      }
+      io.to(`ride-${rideId}`).emit('driver:location', payload);
+      io.to(`ride-${rideId}`).emit('ride:tracking', payload);
     });
 
     socket.on('chat:get', (data) => {
-      const rideId = rideKey(data) || 'global';
+      const rideId = rideKey(data);
 
-      if (rideId !== 'global') {
-        socket.join(`ride-${rideId}`);
+      if (!rideId) {
+        socket.emit('chat:updated', {
+          success: true,
+          rideId: null,
+          messages: [],
+          chat: [],
+        });
+        return;
       }
 
+      socket.join(`ride-${rideId}`);
       emitChatCurrent(socket, rideId);
     });
 
     socket.on('chat:send', (message) => {
       const text = String(message?.message ?? message?.text ?? '').trim();
+      const rideId = rideKey(message?.rideId);
 
-      if (!text) return;
+      if (!text || !rideId) return;
 
-      const rideId = rideKey(message?.rideId) || 'global';
-
-      if (rideId !== 'global') {
-        socket.join(`ride-${rideId}`);
-      }
-
-      const sender = String(
-        message?.sender ?? message?.from ?? message?.role ?? 'passenger',
-      );
-
-      const msg = {
-        id: Date.now(),
-        rideId,
-        sender,
-        from: sender,
-        role: sender,
-        message: text,
-        text,
-        createdAt: message?.createdAt ?? new Date().toISOString(),
-      };
-
-      const chat = getChatList(rideId);
-      chat.push(msg);
-
-      const ride = getRideById(rideId) as any;
-
-      if (ride) {
-        ride.chat = chat;
-        ride.updatedAt = new Date().toISOString();
-        (memoryStore.activeRides as any)[String(ride.rideId || ride.id)] = ride;
-      }
-
-      emitChat(io, rideId);
-    });
-
-    socket.on('chat:message', (message) => {
-      const text = String(message?.message ?? message?.text ?? '').trim();
-
-      if (!text) return;
-
-      const rideId = rideKey(message?.rideId) || 'global';
-
-      if (rideId !== 'global') {
-        socket.join(`ride-${rideId}`);
-      }
+      socket.join(`ride-${rideId}`);
 
       const sender = String(
         message?.sender ?? message?.from ?? message?.role ?? 'passenger',
@@ -391,7 +400,9 @@ export function registerSocket(io: Server) {
     });
 
     socket.on('chat:clear', (data) => {
-      const rideId = rideKey(data) || 'global';
+      const rideId = rideKey(data);
+
+      if (!rideId) return;
 
       chatMessagesByRide[rideId] = [];
 
@@ -407,6 +418,20 @@ export function registerSocket(io: Server) {
     });
 
     socket.on('disconnect', (reason) => {
+      const driverId = socket.data.driverId;
+
+      if (driverId) {
+        const driver = memoryStore.driversDatabase?.find(
+          (item: any) => String(item.id) === String(driverId),
+        );
+
+        if (driver) {
+          driver.online = false;
+        }
+      }
+
+      socket.leave('drivers');
+
       console.log('🔴 Socket desconectado:', socket.id, reason);
     });
   });

@@ -14,17 +14,42 @@ export interface Driver {
   cpf: string;
   cnh: string;
 
+  carBrand: string;
   carModel: string;
   carPlate: string;
   carColor: string;
+  carYear: string;
+  carSeats: number;
 
-  profilePhoto: string;
-  cnhPhoto: string;
-  carPhoto: string;
+  renavam?: string;
+
+  profilePhoto?: string;
+
+  driverPhoto?: string;
+  documentPhoto?: string;
+  licensePhoto?: string;
+  licenseBackPhoto?: string;
+  vehiclePhoto?: string;
+
+  frontPhoto?: string;
+  backPhoto?: string;
+  sidePhotoLeft?: string;
+  sidePhotoRight?: string;
+
+  licensePdf?: string;
+  carDocumentPdf?: string;
 
   otpVerified: boolean;
 
   status: DriverStatus;
+
+  approved?: boolean;
+
+  blocked?: boolean;
+
+  blockedReason?: string;
+
+  walletDebt?: number;
 
   online: boolean;
 

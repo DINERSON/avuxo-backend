@@ -11,17 +11,41 @@ function normalizePlate(value: unknown) {
   return String(value || '').toUpperCase().trim();
 }
 
+function findDriverById(id: any) {
+  return memoryStore.driversDatabase.find(
+    (item) => String(item.id) === String(id),
+  );
+}
+
+function ensureDriverOnlineStore() {
+  const store = memoryStore as any;
+
+  store.onlineDrivers = store.onlineDrivers || {};
+  store.driverSockets = store.driverSockets || {};
+
+  return store;
+}
+
 export function registerDriverRoutes(app: Express) {
   app.get('/drivers', (_req, res) => {
-    res.json({
+    return res.json({
       success: true,
       drivers: memoryStore.driversDatabase,
     });
   });
 
   app.post('/drivers/register', (req, res) => {
+    ensureDriverOnlineStore();
+
     const phone = normalizePhone(req.body.phone);
     const plate = normalizePlate(req.body.carPlate || req.body.plate);
+
+    if (!phone) {
+      return res.status(400).json({
+        success: false,
+        message: 'Telefone é obrigatório.',
+      });
+    }
 
     const alreadyExists = memoryStore.driversDatabase.find((item) => {
       const itemPhone = normalizePhone(item.phone);
@@ -42,11 +66,11 @@ export function registerDriverRoutes(app: Express) {
     }
 
     const driver: DriverAccount = {
-      id: Date.now(),
+      id: String(Date.now()),
 
       fullName: req.body.fullName || req.body.name || 'Motorista AVUXO',
       email: req.body.email || '',
-      phone: req.body.phone || '',
+      phone,
 
       carBrand: req.body.carBrand || '',
       carModel: req.body.carModel || '',
@@ -62,6 +86,7 @@ export function registerDriverRoutes(app: Express) {
       documentPhoto: req.body.documentPhoto || '',
 
       licensePhoto: req.body.licensePhoto || '',
+
       cnhFront: req.body.cnhFront || req.body.cnhFrontPhoto || '',
       cnhBack: req.body.cnhBack || req.body.cnhBackPhoto || '',
       cnhFrontPhoto: req.body.cnhFrontPhoto || req.body.cnhFront || '',
@@ -120,49 +145,13 @@ export function registerDriverRoutes(app: Express) {
       blocked: driver.blocked === true,
       blockedReason: driver.blockedReason || '',
       status: driver.status,
-      driver: {
-        id: driver.id,
-
-        fullName: driver.fullName,
-        email: driver.email,
-        phone: driver.phone,
-
-        rating: driver.rating || 0,
-        totalRatings: driver.totalRatings || 0,
-
-        carBrand: driver.carBrand,
-        carModel: driver.carModel,
-        carPlate: driver.carPlate,
-        carColor: driver.carColor,
-        carYear: driver.carYear,
-        carSeats: driver.carSeats,
-
-        renavam: driver.renavam,
-
-        driverPhoto: driver.driverPhoto,
-        vehiclePhoto: driver.vehiclePhoto,
-        documentPhoto: driver.documentPhoto,
-
-        licensePhoto: driver.licensePhoto,
-        cnhFrontPhoto: driver.cnhFrontPhoto,
-        cnhBackPhoto: driver.cnhBackPhoto,
-
-        vehicleDocumentPhoto: driver.vehicleDocumentPhoto,
-        vehicleDocumentPdf: driver.vehicleDocumentPdf,
-
-        vehicleSidePhoto: driver.vehicleSidePhoto,
-        vehicleBackPhoto: driver.vehicleBackPhoto,
-      },
+      driver,
     });
   });
 
   app.post('/drivers/:id/photo', (req, res) => {
-    const id = Number(req.params.id);
+    const driver = findDriverById(req.params.id);
     const driverPhoto = String(req.body.driverPhoto || '').trim();
-
-    const driver = memoryStore.driversDatabase.find(
-      (item) => Number(item.id) === id,
-    );
 
     if (!driver) {
       return res.status(404).json({
@@ -221,12 +210,10 @@ export function registerDriverRoutes(app: Express) {
   });
 
   app.post('/drivers/status', (req, res) => {
-    const id = Number(req.body.id || req.body.driverId);
+    const id = String(req.body.id || req.body.driverId || '');
     const online = Boolean(req.body.online);
 
-    const driver = memoryStore.driversDatabase.find(
-      (item) => Number(item.id) === id,
-    );
+    const driver = findDriverById(id);
 
     if (!driver) {
       return res.status(404).json({
@@ -236,6 +223,8 @@ export function registerDriverRoutes(app: Express) {
     }
 
     if (driver.blocked) {
+      driver.online = false;
+
       return res.status(403).json({
         success: false,
         message: 'Motorista bloqueado',
@@ -244,6 +233,8 @@ export function registerDriverRoutes(app: Express) {
     }
 
     if (!driver.approved) {
+      driver.online = false;
+
       return res.status(403).json({
         success: false,
         message: 'Motorista ainda não aprovado',
@@ -251,7 +242,10 @@ export function registerDriverRoutes(app: Express) {
       });
     }
 
+    const store = ensureDriverOnlineStore();
+
     driver.online = online;
+    store.onlineDrivers[String(driver.id)] = online;
 
     return res.json({
       success: true,
@@ -260,11 +254,7 @@ export function registerDriverRoutes(app: Express) {
   });
 
   app.get('/driver/profile/:id', (req, res) => {
-    const id = Number(req.params.id);
-
-    const driver = memoryStore.driversDatabase.find(
-      (item) => Number(item.id) === id,
-    );
+    const driver = findDriverById(req.params.id);
 
     if (!driver) {
       return res.status(404).json({
@@ -279,42 +269,43 @@ export function registerDriverRoutes(app: Express) {
     });
   });
 
- app.get('/driver/wallet/:id', (req, res) => {
-  const store = memoryStore as any;
+  app.get('/driver/wallet/:id', (req, res) => {
+    const store = memoryStore as any;
+    const driverId = String(req.params.id);
 
-  const driverId = String(req.params.id);
+    store.driverWallets = store.driverWallets || {};
 
-  if (!store.driverWallets) {
-    store.driverWallets = {};
-  }
+    const wallet =
+      store.driverWallets[driverId] || {
+        driverId,
+        balance: 0,
+        totalFees: 0,
+        transactions: [],
+      };
 
-  const wallet =
-    store.driverWallets[driverId] || {
-      driverId,
-      balance: 0,
-      totalFees: 0,
-      transactions: [],
-    };
-
-  return res.json({
-    success: true,
-    wallet,
-  });
-});
-
-  app.get('/driver/trips/:id', (_req, res) => {
     return res.json({
       success: true,
-      trips: [],
+      wallet,
+    });
+  });
+
+  app.get('/driver/trips/:id', (req, res) => {
+    const driverId = String(req.params.id);
+
+    const trips = (memoryStore.rideHistory || []).filter(
+      (ride: any) =>
+        String(ride.driverId || ride.driver?.id || ride.driver?.driverId) ===
+        driverId,
+    );
+
+    return res.json({
+      success: true,
+      trips,
     });
   });
 
   app.get('/driver/vehicle/:id', (req, res) => {
-    const id = Number(req.params.id);
-
-    const driver = memoryStore.driversDatabase.find(
-      (item) => Number(item.id) === id,
-    );
+    const driver = findDriverById(req.params.id);
 
     if (!driver) {
       return res.status(404).json({
@@ -336,25 +327,42 @@ export function registerDriverRoutes(app: Express) {
     });
   });
 
-  app.get('/driver/performance/:id', (_req, res) => {
+  app.get('/driver/performance/:id', (req, res) => {
+    const driverId = String(req.params.id);
+
+    const trips = (memoryStore.rideHistory || []).filter(
+      (ride: any) =>
+        String(ride.driverId || ride.driver?.id || ride.driver?.driverId) ===
+        driverId,
+    );
+
+    const completedTrips = trips.filter(
+      (ride: any) => ride.status === 'finished',
+    ).length;
+
+    const cancelledTrips = trips.filter(
+      (ride: any) => ride.status === 'cancelled',
+    ).length;
+
+    const totalTrips = trips.length;
+
     return res.json({
       success: true,
       performance: {
         rating: 0,
-        completedTrips: 0,
-        acceptanceRate: 0,
-        cancelRate: 0,
+        completedTrips,
+        acceptanceRate: totalTrips > 0 ? 100 : 0,
+        cancelRate:
+          totalTrips > 0
+            ? Number(((cancelledTrips / totalTrips) * 100).toFixed(1))
+            : 0,
         onlineHours: 0,
       },
     });
   });
 
   app.get('/driver/notifications/:id', (req, res) => {
-    const id = Number(req.params.id);
-
-    const driver = memoryStore.driversDatabase.find(
-      (item) => Number(item.id) === id,
-    );
+    const driver = findDriverById(req.params.id);
 
     if (!driver) {
       return res.status(404).json({
@@ -387,27 +395,6 @@ export function registerDriverRoutes(app: Express) {
         time: new Date().toISOString(),
       });
     }
-
-    notifications.push({
-      type: 'payment',
-      title: 'Pagamento recebido',
-      message: 'Você recebeu um pagamento por uma corrida.',
-      time: new Date().toISOString(),
-    });
-
-    notifications.push({
-      type: 'ride',
-      title: 'Corrida concluída',
-      message: 'Uma corrida foi finalizada com sucesso.',
-      time: new Date().toISOString(),
-    });
-
-    notifications.push({
-      type: 'campaign',
-      title: 'Aviso AVUXO',
-      message: 'Fique online nos horários de pico para ganhar mais.',
-      time: new Date().toISOString(),
-    });
 
     return res.json({
       success: true,

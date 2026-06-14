@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 export interface AdminRequest extends Request {
   admin?: {
     username: string;
+    role?: string;
   };
 }
 
@@ -13,37 +14,46 @@ export function adminAuth(
   next: NextFunction,
 ) {
   try {
-    const authHeader =
-      req.headers.authorization || '';
+    const authHeader = req.headers.authorization;
 
-    const token = authHeader.replace(
-      'Bearer ',
-      '',
-    );
-
-    if (!token) {
+    if (!authHeader) {
       return res.status(401).json({
         success: false,
         message: 'Token não informado.',
       });
     }
 
+    const token = authHeader.startsWith('Bearer ')
+      ? authHeader.substring(7)
+      : authHeader;
+
+    const jwtSecret = process.env.JWT_SECRET;
+
+    if (!jwtSecret) {
+      return res.status(500).json({
+        success: false,
+        message: 'JWT_SECRET não configurado.',
+      });
+    }
+
     const decoded = jwt.verify(
       token,
-      process.env.JWT_SECRET || 'avuxo-secret',
+      jwtSecret,
     ) as {
       username: string;
+      role?: string;
     };
 
     req.admin = {
       username: decoded.username,
+      role: decoded.role,
     };
 
-    next();
-  } catch {
+    return next();
+  } catch (error) {
     return res.status(401).json({
       success: false,
-      message: 'Token inválido.',
+      message: 'Token inválido ou expirado.',
     });
   }
 }

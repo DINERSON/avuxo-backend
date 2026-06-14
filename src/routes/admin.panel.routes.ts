@@ -24,7 +24,11 @@ body {
   font-family: Arial, sans-serif;
 }
 
-.shell { display: grid; grid-template-columns: 280px 1fr; min-height: 100vh; }
+.shell {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  min-height: 100vh;
+}
 
 aside {
   padding: 30px;
@@ -38,7 +42,6 @@ aside {
   font-size: 32px;
   font-weight: 900;
   letter-spacing: 4px;
-  text-shadow: 0 0 28px rgba(36,248,119,0.32);
 }
 
 .sub {
@@ -48,7 +51,11 @@ aside {
   letter-spacing: 3px;
 }
 
-nav { margin-top: 40px; display: grid; gap: 12px; }
+nav {
+  margin-top: 40px;
+  display: grid;
+  gap: 12px;
+}
 
 button {
   border: 0;
@@ -59,23 +66,34 @@ button {
   text-align: left;
   font-weight: 800;
   cursor: pointer;
-  transition: 0.2s;
 }
 
-button:hover, button.active {
+button:hover,
+button.active {
   color: #24F877;
   background: rgba(36,248,119,0.12);
 }
 
-main { padding: 40px; }
+main {
+  padding: 40px;
+}
 
-h1 { margin-top: 0; font-size: 40px; }
+h1 {
+  margin-top: 0;
+  font-size: 40px;
+}
 
-p { color: #8c96a8; }
+p {
+  color: #8c96a8;
+}
 
-.section { display: none; }
+.section {
+  display: none;
+}
 
-.section.active { display: block; }
+.section.active {
+  display: block;
+}
 
 .cards {
   margin-top: 30px;
@@ -84,15 +102,22 @@ p { color: #8c96a8; }
   gap: 18px;
 }
 
-.card {
-  padding: 24px;
-  border-radius: 24px;
+.card,
+.premium-box,
+.panel {
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(255,255,255,0.08);
   box-shadow: 0 20px 60px rgba(0,0,0,0.22);
 }
 
-.card small { color: #8c96a8; }
+.card {
+  padding: 24px;
+  border-radius: 24px;
+}
+
+.card small {
+  color: #8c96a8;
+}
 
 .card strong {
   display: block;
@@ -100,13 +125,16 @@ p { color: #8c96a8; }
   font-size: 34px;
 }
 
+.premium-box {
+  margin-top: 30px;
+  padding: 28px;
+  border-radius: 28px;
+}
+
 .panel {
   margin-top: 30px;
   border-radius: 28px;
   overflow: auto;
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.08);
-  box-shadow: 0 20px 60px rgba(0,0,0,0.22);
 }
 
 .panel-head {
@@ -118,9 +146,14 @@ p { color: #8c96a8; }
   gap: 12px;
 }
 
-table { width: 100%; border-collapse: collapse; min-width: 900px; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 900px;
+}
 
-th, td {
+th,
+td {
   padding: 18px 20px;
   border-bottom: 1px solid rgba(255,255,255,0.06);
   text-align: left;
@@ -134,6 +167,7 @@ th {
 }
 
 .badge {
+  display: inline-block;
   padding: 8px 12px;
   border-radius: 999px;
   background: rgba(36,248,119,0.12);
@@ -142,23 +176,24 @@ th {
   font-weight: 900;
 }
 
-.premium-box {
-  margin-top: 30px;
-  padding: 28px;
-  border-radius: 28px;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.08);
-}
-
-.modal {
+.modal,
+.zoom-modal {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.82);
   display: none;
   justify-content: center;
   align-items: center;
   padding: 30px;
+}
+
+.modal {
+  background: rgba(0,0,0,0.82);
   z-index: 9999;
+}
+
+.zoom-modal {
+  background: rgba(0,0,0,0.94);
+  z-index: 999999;
 }
 
 .modal-content {
@@ -179,37 +214,38 @@ th {
   gap: 20px;
 }
 
-.modal-grid {
+.modal-grid,
+.docs-grid {
   margin-top: 24px;
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
   gap: 20px;
+}
+
+.modal-grid {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.docs-grid {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.modal-card,
+.doc-card {
+  border-radius: 22px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.06);
 }
 
 .modal-card {
   padding: 22px;
-  border-radius: 22px;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.06);
 }
 
 .modal-card h3 {
   margin-top: 0;
   color: #24F877;
-  margin-bottom: 18px;
-}
-
-.docs-grid {
-  margin-top: 26px;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 18px;
 }
 
 .doc-card {
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 22px;
   overflow: hidden;
 }
 
@@ -221,9 +257,22 @@ th {
   cursor: pointer;
 }
 
-.doc-info { padding: 16px; }
+.doc-info {
+  padding: 16px;
+}
 
-.doc-title { font-weight: 900; margin-bottom: 8px; }
+.doc-title {
+  font-weight: 900;
+  margin-bottom: 8px;
+}
+
+.empty-doc {
+  height: 220px;
+  display: grid;
+  place-items: center;
+  color: #8c96a8;
+  background: rgba(255,255,255,0.03);
+}
 
 .pdf-btn {
   background: rgba(36,248,119,0.14);
@@ -240,36 +289,24 @@ th {
   color: #ffcc66;
 }
 
-.zoom-modal {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.94);
-  display: none;
-  justify-content: center;
-  align-items: center;
-  z-index: 999999;
-  padding: 40px;
-}
-
 .zoom-modal img {
   max-width: 95%;
   max-height: 95%;
   border-radius: 24px;
 }
 
-.empty-doc {
-  height: 220px;
-  display: grid;
-  place-items: center;
-  color: #8c96a8;
-  background: rgba(255,255,255,0.03);
-}
-
 @media (max-width: 900px) {
-  .shell { grid-template-columns: 1fr; }
-  aside { position: static; }
-  .cards { grid-template-columns: repeat(2, 1fr); }
-  main { padding: 22px; }
+  .shell {
+    grid-template-columns: 1fr;
+  }
+
+  .cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  main {
+    padding: 22px;
+  }
 }
 </style>
 
@@ -295,7 +332,7 @@ th {
   <main>
     <section id="dashboard" class="section active">
       <h1>Dashboard</h1>
-      <p>Painel premium operacional.</p>
+      <p>Painel operacional AVUXO.</p>
 
       <div class="cards">
         <div class="card"><small>Motoristas</small><strong id="driversCount">0</strong></div>
@@ -333,21 +370,19 @@ th {
               <th>Ações</th>
             </tr>
           </thead>
-
           <tbody id="driversTable">
             <tr><td colspan="4">Carregando...</td></tr>
           </tbody>
         </table>
       </section>
     </section>
-
     <section id="rides" class="section">
       <h1>Corridas</h1>
       <p>Corridas realtime AVUXO.</p>
 
       <div class="panel">
         <div class="panel-head">
-          <strong>Corrida atual</strong>
+          <strong>Corridas ativas</strong>
           <button onclick="loadCurrentRide()">Atualizar</button>
         </div>
 
@@ -364,7 +399,6 @@ th {
               <th>Status</th>
             </tr>
           </thead>
-
           <tbody id="ridesTable">
             <tr><td colspan="8">Carregando...</td></tr>
           </tbody>
@@ -392,7 +426,7 @@ th {
         <h2>AVUXO Backend</h2>
         <p>Status: online</p>
         <p>API: /admin/drivers funcionando</p>
-        <p>API: /ride/current funcionando</p>
+        <p>API: /rides/active funcionando</p>
         <p>API: /ride/history funcionando</p>
         <p>Painel: /admin funcionando</p>
       </div>
@@ -443,6 +477,8 @@ th {
 
 <script>
 let currentDriverId = null;
+let currentRideId = null;
+
 window.driversCache = [];
 
 const adminToken = localStorage.getItem('avuxo_admin_token');
@@ -451,37 +487,71 @@ if (!adminToken) {
   window.location.href = '/login';
 }
 
-const socket = io();
+const socket = io({
+  auth: {
+    token: adminToken,
+  },
+});
 
 socket.emit('join:admin');
 
+function refreshOperationalData() {
+  loadDrivers();
+  loadCurrentRide();
+  loadRideStats();
+}
+
 socket.on('server:ready', function(data) {
   console.log('SERVER READY', data);
+  refreshOperationalData();
+});
+
+socket.on('admin:state', function() {
   loadCurrentRide();
   loadRideStats();
 });
 
-socket.on('admin:state', function(data) {
-  if (data.currentRide) {
-    renderRide(data.currentRide);
-    updateActiveRideCard(data.currentRide);
-  } else {
-    renderRide(null);
-    updateActiveRideCard(null);
-  }
-
+socket.on('ride:update', function() {
+  loadCurrentRide();
   loadRideStats();
 });
 
-socket.on('ride:update', function(data) {
-  if (data.ride) {
-    renderRide(data.ride);
-    updateActiveRideCard(data.ride);
-  } else {
-    renderRide(null);
-    updateActiveRideCard(null);
-  }
+socket.on('ride:updated', function() {
+  loadCurrentRide();
+  loadRideStats();
+});
 
+socket.on('ride:requested', function() {
+  loadCurrentRide();
+  loadRideStats();
+});
+
+socket.on('ride:accepted', function() {
+  loadCurrentRide();
+  loadRideStats();
+});
+
+socket.on('ride:arrived', function() {
+  loadCurrentRide();
+  loadRideStats();
+});
+
+socket.on('ride:started', function() {
+  loadCurrentRide();
+  loadRideStats();
+});
+
+socket.on('ride:finished', function() {
+  loadCurrentRide();
+  loadRideStats();
+});
+
+socket.on('ride:cancelled', function() {
+  loadCurrentRide();
+  loadRideStats();
+});
+
+socket.on('wallet:update', function() {
   loadRideStats();
 });
 
@@ -489,22 +559,17 @@ function money(value) {
   return 'R$ ' + Number(value || 0).toFixed(2).replace('.', ',');
 }
 
-function updateActiveRideCard(ride) {
+function safeText(value, fallback) {
+  return String(value || fallback || '-');
+}
+
+function updateActiveRideCard(count) {
   const active = document.getElementById('activeRidesCount');
 
   if (!active) return;
 
-  if (!ride) {
-    active.textContent = '0';
-    return;
-  }
-
-  active.textContent =
-    ride.status !== 'finished' && ride.status !== 'cancelled'
-      ? '1'
-      : '0';
+  active.textContent = String(count || 0);
 }
-
 async function loadRideStats() {
   try {
     const response = await fetch('/ride/history');
@@ -514,12 +579,22 @@ async function loadRideStats() {
     const now = new Date();
 
     const today = rides.filter(function(ride) {
-      const date = new Date(ride.finishedAt || ride.cancelledAt || ride.createdAt);
+      const date = new Date(
+        ride.finishedAt ||
+        ride.cancelledAt ||
+        ride.createdAt,
+      );
+
       return date.toDateString() === now.toDateString();
     });
 
     const month = rides.filter(function(ride) {
-      const date = new Date(ride.finishedAt || ride.cancelledAt || ride.createdAt);
+      const date = new Date(
+        ride.finishedAt ||
+        ride.cancelledAt ||
+        ride.createdAt,
+      );
+
       return (
         date.getMonth() === now.getMonth() &&
         date.getFullYear() === now.getFullYear()
@@ -528,11 +603,13 @@ async function loadRideStats() {
 
     const todayRevenue = today.reduce(function(total, ride) {
       if (ride.status === 'cancelled') return total;
+
       return total + Number(ride.total || ride.price || 0);
     }, 0);
 
     const monthRevenue = month.reduce(function(total, ride) {
       if (ride.status === 'cancelled') return total;
+
       return total + Number(ride.total || ride.price || 0);
     }, 0);
 
@@ -540,72 +617,153 @@ async function loadRideStats() {
     document.getElementById('todayRevenue').textContent = money(todayRevenue);
     document.getElementById('monthRevenue').textContent = money(monthRevenue);
 
-    document.getElementById('financeTodayRevenue').textContent = money(todayRevenue);
-    document.getElementById('financeMonthRevenue').textContent = money(monthRevenue);
+    document.getElementById('financeTodayRevenue').textContent =
+      money(todayRevenue);
+
+    document.getElementById('financeMonthRevenue').textContent =
+      money(monthRevenue);
 
     document.getElementById('operationalSummary').textContent =
-      'Backend online • Corridas hoje: ' + today.length +
-      ' • Receita hoje: ' + money(todayRevenue) +
-      ' • Última atualização: ' + new Date().toLocaleTimeString('pt-BR');
-
+      'Backend online • Corridas hoje: ' +
+      today.length +
+      ' • Receita hoje: ' +
+      money(todayRevenue) +
+      ' • Última atualização: ' +
+      new Date().toLocaleTimeString('pt-BR');
   } catch (error) {
     console.error('Erro ao carregar estatísticas de corridas', error);
   }
 }
 
-function renderRide(ride) {
+function renderRides(rides) {
   const tbody = document.getElementById('ridesTable');
 
   if (!tbody) return;
 
-  if (!ride) {
+  if (!rides || !rides.length) {
+    currentRideId = null;
+    updateActiveRideCard(0);
+
     tbody.innerHTML =
       '<tr>' +
         '<td colspan="8">Nenhuma corrida ativa.</td>' +
       '</tr>';
+
     return;
   }
 
-  tbody.innerHTML =
-    '<tr>' +
-      '<td>' + (ride.passenger?.fullName || ride.passenger?.name || 'Passageiro') + '</td>' +
-      '<td>' + (ride.rideType || '-') + '</td>' +
-      '<td>' + (ride.originName || '-') + '</td>' +
-      '<td>' + (ride.destinationName || '-') + '</td>' +
-      '<td>' + (ride.distanceText || '-') + '</td>' +
-      '<td>' + (ride.eta || '-') + '</td>' +
-      '<td>' + money(ride.total || ride.price || 0) + '</td>' +
-      '<td><span class="badge">' + (ride.status || 'pending') + '</span></td>' +
-    '</tr>' +
-    '<tr>' +
-      '<td colspan="8">' +
-        '<b>Motorista:</b> ' + (ride.driver?.fullName || ride.driver?.name || 'Aguardando motorista') +
-        ' | <b>Telefone:</b> ' + (ride.driver?.phone || '-') +
-        ' | <b>Placa:</b> ' + (ride.driver?.carPlate || ride.driver?.plate || '-') +
-        ' | <b>Pagamento:</b> ' + (ride.paymentMethod || 'PIX') +
-        '<br><br>' +
-        '<button onclick="rideAction(\\'/ride/accept\\')">Aceitar</button> ' +
-        '<button onclick="rideAction(\\'/ride/arrived\\')">Chegando</button> ' +
-        '<button onclick="rideAction(\\'/ride/start\\')">Iniciar</button> ' +
-        '<button onclick="rideAction(\\'/ride/finish\\')">Finalizar</button> ' +
-        '<button class="danger-btn" onclick="rideAction(\\'/ride/cancel\\')">Cancelar</button>' +
-      '</td>' +
-    '</tr>';
+  updateActiveRideCard(rides.length);
+
+  tbody.innerHTML = rides.map(function(ride) {
+    const rideId = ride.rideId || ride.id;
+
+    return (
+      '<tr>' +
+        '<td>' + safeText(ride.passenger?.fullName || ride.passenger?.name, 'Passageiro') + '</td>' +
+        '<td>' + safeText(ride.rideType, '-') + '</td>' +
+        '<td>' + safeText(ride.originName, '-') + '</td>' +
+        '<td>' + safeText(ride.destinationName, '-') + '</td>' +
+        '<td>' + safeText(ride.distanceText, '-') + '</td>' +
+        '<td>' + safeText(ride.eta, '-') + '</td>' +
+        '<td>' + money(ride.total || ride.price || 0) + '</td>' +
+        '<td><span class="badge">' + safeText(ride.status, 'pending') + '</span></td>' +
+      '</tr>' +
+
+      '<tr>' +
+        '<td colspan="8">' +
+          '<b>RideId:</b> ' + safeText(rideId, '-') +
+          ' | <b>Passageiro:</b> ' + safeText(ride.passenger?.fullName || ride.passenger?.name, '-') +
+          ' | <b>Email:</b> ' + safeText(ride.passenger?.email, '-') +
+          ' | <b>Telefone:</b> ' + safeText(ride.passenger?.phone, '-') +
+          '<br><b>Motorista:</b> ' + safeText(ride.driver?.fullName || ride.driver?.name, 'Aguardando') +
+          ' | <b>Telefone:</b> ' + safeText(ride.driver?.phone, '-') +
+          ' | <b>Placa:</b> ' + safeText(ride.driver?.carPlate || ride.driver?.plate, '-') +
+          ' | <b>Pagamento:</b> ' + safeText(ride.paymentMethod, 'PIX') +
+          '<br><br>' +
+          renderRideButtons(ride) +
+        '</td>' +
+      '</tr>'
+    );
+  }).join('');
 }
 
-async function rideAction(endpoint) {
+function renderRideButtons(ride) {
+  const rideId = ride.rideId || ride.id;
+  const status = ride.status || 'pending';
+
+  let html = '';
+
+  if (status === 'pending') {
+    html +=
+      '<button onclick="rideAction(\\'/ride/accept\\', \\''
+      + rideId +
+      '\\')">Aceitar</button> ';
+  }
+
+  if (status === 'accepted') {
+    html +=
+      '<button onclick="rideAction(\\'/ride/arrived\\', \\''
+      + rideId +
+      '\\')">Chegando</button> ';
+
+    html +=
+      '<button onclick="rideAction(\\'/ride/start\\', \\''
+      + rideId +
+      '\\')">Iniciar</button> ';
+  }
+
+  if (status === 'arriving') {
+    html +=
+      '<button onclick="rideAction(\\'/ride/start\\', \\''
+      + rideId +
+      '\\')">Iniciar</button> ';
+  }
+
+  if (status === 'in_progress') {
+    html +=
+      '<button onclick="rideAction(\\'/ride/finish\\', \\''
+      + rideId +
+      '\\')">Finalizar</button> ';
+  }
+
+  if (
+    status !== 'finished' &&
+    status !== 'cancelled'
+  ) {
+    html +=
+      '<button class="danger-btn" onclick="rideAction(\\'/ride/cancel\\', \\''
+      + rideId +
+      '\\')">Cancelar</button>';
+  }
+
+  return html;
+}
+
+async function rideAction(endpoint, rideId) {
   try {
-    await fetch(endpoint, {
+    currentRideId = rideId;
+
+    const response = await fetch(endpoint, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify({
+        rideId: rideId,
         reason: 'Ação feita pelo painel admin',
         cancelledBy: 'admin',
       }),
     });
 
-    loadCurrentRide();
-    loadRideStats();
+    const data = await response.json();
+
+    if (!data.success) {
+      alert(data.message || 'Erro ao executar ação da corrida.');
+      return;
+    }
+
+    await loadCurrentRide();
+    await loadRideStats();
   } catch (error) {
     console.error(error);
     alert('Erro ao executar ação da corrida.');
@@ -629,7 +787,11 @@ function openSection(sectionId, button) {
     loadDrivers();
   }
 
-  if (sectionId === 'rides' || sectionId === 'dashboard' || sectionId === 'finance') {
+  if (
+    sectionId === 'rides' ||
+    sectionId === 'dashboard' ||
+    sectionId === 'finance'
+  ) {
     loadCurrentRide();
     loadRideStats();
   }
@@ -638,12 +800,15 @@ function openSection(sectionId, button) {
 async function loadDrivers() {
   const tbody = document.getElementById('driversTable');
 
-  tbody.innerHTML = '<tr><td colspan="4">Atualizando...</td></tr>';
+  tbody.innerHTML =
+    '<tr><td colspan="4">Atualizando...</td></tr>';
 
   try {
     const response = await fetch('/admin/drivers', {
       method: 'GET',
-      headers: { Authorization: 'Bearer ' + adminToken },
+      headers: {
+        Authorization: 'Bearer ' + adminToken,
+      },
     });
 
     if (response.status === 401) {
@@ -655,7 +820,8 @@ async function loadDrivers() {
     const data = await response.json();
 
     if (!data.success) {
-      tbody.innerHTML = '<tr><td colspan="4">Erro ao carregar motoristas.</td></tr>';
+      tbody.innerHTML =
+        '<tr><td colspan="4">Erro ao carregar motoristas.</td></tr>';
       return;
     }
 
@@ -664,37 +830,45 @@ async function loadDrivers() {
     window.driversCache = drivers;
 
     document.getElementById('driversCount').textContent = drivers.length;
-    document.getElementById('pendingCount').textContent = drivers.filter(function(d) {
-      return (d.status || 'pending') === 'pending';
-    }).length;
-    document.getElementById('approvedCount').textContent = drivers.filter(function(d) {
-      return d.status === 'approved';
-    }).length;
-    document.getElementById('blockedCount').textContent = drivers.filter(function(d) {
-      return d.status === 'blocked';
-    }).length;
+
+    document.getElementById('pendingCount').textContent =
+      drivers.filter(function(d) {
+        return (d.status || 'pending') === 'pending';
+      }).length;
+
+    document.getElementById('approvedCount').textContent =
+      drivers.filter(function(d) {
+        return d.status === 'approved';
+      }).length;
+
+    document.getElementById('blockedCount').textContent =
+      drivers.filter(function(d) {
+        return d.status === 'blocked';
+      }).length;
 
     if (!drivers.length) {
-      tbody.innerHTML = '<tr><td colspan="4">Nenhum motorista.</td></tr>';
+      tbody.innerHTML =
+        '<tr><td colspan="4">Nenhum motorista.</td></tr>';
       return;
     }
 
     tbody.innerHTML = drivers.map(function(driver, index) {
       return (
         '<tr>' +
-          '<td>' + (driver.fullName || '-') + '</td>' +
-          '<td>' + (driver.phone || '-') + '</td>' +
-          '<td><span class="badge">' + (driver.status || 'pending') + '</span></td>' +
+          '<td>' + safeText(driver.fullName, '-') + '</td>' +
+          '<td>' + safeText(driver.phone, '-') + '</td>' +
+          '<td><span class="badge">' + safeText(driver.status, 'pending') + '</span></td>' +
           '<td><button onclick="openModal(window.driversCache[' + index + '])">Revisar</button></td>' +
         '</tr>'
       );
     }).join('');
   } catch (error) {
     console.error(error);
-    tbody.innerHTML = '<tr><td colspan="4">Falha ao atualizar motoristas.</td></tr>';
+
+    tbody.innerHTML =
+      '<tr><td colspan="4">Falha ao atualizar motoristas.</td></tr>';
   }
 }
-
 function createDocCard(title, image, pdf) {
   return (
     '<div class="doc-card">' +
@@ -719,24 +893,39 @@ function openModal(driver) {
   currentDriverId = driver.id;
 
   document.getElementById('driverModal').style.display = 'flex';
-  document.getElementById('modalDriverName').textContent = driver.fullName || '-';
-  document.getElementById('modalStatus').textContent = 'Status: ' + (driver.status || 'pending');
-  document.getElementById('modalPhone').textContent = driver.phone || '-';
-  document.getElementById('modalEmail').textContent = driver.email || '-';
-  document.getElementById('modalRenavam').textContent = driver.renavam || '-';
-  document.getElementById('modalCar').textContent = (driver.carBrand || '') + ' ' + (driver.carModel || '');
-  document.getElementById('modalPlate').textContent = driver.carPlate || '-';
-  document.getElementById('modalColor').textContent = driver.carColor || '-';
+  document.getElementById('modalDriverName').textContent =
+    driver.fullName || '-';
+
+  document.getElementById('modalStatus').textContent =
+    'Status: ' + (driver.status || 'pending');
+
+  document.getElementById('modalPhone').textContent =
+    driver.phone || '-';
+
+  document.getElementById('modalEmail').textContent =
+    driver.email || '-';
+
+  document.getElementById('modalRenavam').textContent =
+    driver.renavam || '-';
+
+  document.getElementById('modalCar').textContent =
+    (driver.carBrand || '') + ' ' + (driver.carModel || '');
+
+  document.getElementById('modalPlate').textContent =
+    driver.carPlate || '-';
+
+  document.getElementById('modalColor').textContent =
+    driver.carColor || '-';
 
   document.getElementById('docsGrid').innerHTML =
     createDocCard('Selfie', driver.driverPhoto) +
-    createDocCard('CNH Frente', driver.cnhFrontPhoto || driver.cnhFront) +
-    createDocCard('CNH Verso', driver.cnhBackPhoto || driver.cnhBack) +
+    createDocCard('CNH Frente', driver.cnhFrontPhoto || driver.cnhFront || driver.licensePhoto) +
+    createDocCard('CNH Verso', driver.cnhBackPhoto || driver.cnhBack || driver.licenseBackPhoto) +
     createDocCard('Documento', driver.documentPhoto) +
     createDocCard('Carro Frente', driver.vehiclePhoto) +
-    createDocCard('Carro Lateral', driver.vehicleSidePhoto) +
-    createDocCard('Carro Traseira', driver.vehicleBackPhoto) +
-    createDocCard('Documento Veículo', driver.vehicleDocumentPhoto, driver.vehicleDocumentPdf);
+    createDocCard('Carro Lateral', driver.vehicleSidePhoto || driver.sidePhotoLeft || driver.sidePhotoRight) +
+    createDocCard('Carro Traseira', driver.vehicleBackPhoto || driver.backPhoto) +
+    createDocCard('Documento Veículo', driver.vehicleDocumentPhoto, driver.vehicleDocumentPdf || driver.carDocumentPdf);
 }
 
 function closeModal() {
@@ -745,6 +934,7 @@ function closeModal() {
 
 function openZoom(src) {
   if (!src) return;
+
   document.getElementById('zoomedImage').src = src;
   document.getElementById('zoomModal').style.display = 'flex';
 }
@@ -758,10 +948,15 @@ async function approveDriver() {
   if (!currentDriverId) return;
 
   try {
-    const response = await fetch('/admin/drivers/' + currentDriverId + '/approve', {
-      method: 'POST',
-      headers: { Authorization: 'Bearer ' + adminToken },
-    });
+    const response = await fetch(
+      '/admin/drivers/' + currentDriverId + '/approve',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer ' + adminToken,
+        },
+      },
+    );
 
     const data = await response.json();
 
@@ -782,14 +977,19 @@ async function blockDriver() {
   if (!currentDriverId) return;
 
   try {
-    const response = await fetch('/admin/drivers/' + currentDriverId + '/block', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: 'Bearer ' + adminToken,
+    const response = await fetch(
+      '/admin/drivers/' + currentDriverId + '/block',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer ' + adminToken,
+        },
+        body: JSON.stringify({
+          reason: 'Bloqueado pelo admin',
+        }),
       },
-      body: JSON.stringify({ reason: 'Bloqueado pelo admin' }),
-    });
+    );
 
     const data = await response.json();
 
@@ -810,10 +1010,15 @@ async function rejectDriver() {
   if (!currentDriverId) return;
 
   try {
-    const response = await fetch('/admin/drivers/' + currentDriverId + '/reject', {
-      method: 'POST',
-      headers: { Authorization: 'Bearer ' + adminToken },
-    });
+    const response = await fetch(
+      '/admin/drivers/' + currentDriverId + '/reject',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer ' + adminToken,
+        },
+      },
+    );
 
     const data = await response.json();
 
@@ -839,43 +1044,11 @@ async function loadCurrentRide() {
 
     const rides = data.rides || [];
 
-    if (!rides.length) {
-      tbody.innerHTML =
-        '<tr><td colspan="8">Nenhuma corrida ativa.</td></tr>';
-
-      document.getElementById('activeRidesCount').textContent = '0';
-      return;
-    }
-
-    document.getElementById('activeRidesCount').textContent = rides.length;
-
-    tbody.innerHTML = rides.map(function(ride) {
-      return (
-        '<tr>' +
-          '<td>' + (ride.passenger?.fullName || ride.passenger?.name || 'Passageiro') + '</td>' +
-          '<td>' + (ride.rideType || '-') + '</td>' +
-          '<td>' + (ride.originName || '-') + '</td>' +
-          '<td>' + (ride.destinationName || '-') + '</td>' +
-          '<td>' + (ride.distanceText || '-') + '</td>' +
-          '<td>' + (ride.eta || '-') + '</td>' +
-          '<td>' + money(ride.total || ride.price || 0) + '</td>' +
-          '<td><span class="badge">' + (ride.status || 'pending') + '</span></td>' +
-        '</tr>' +
-        '<tr>' +
-          '<td colspan="8">' +
-            '<b>RideId:</b> ' + (ride.rideId || ride.id) +
-            ' | <b>Passageiro:</b> ' + (ride.passenger?.fullName || ride.passenger?.name || '-') +
-            ' | <b>Email:</b> ' + (ride.passenger?.email || '-') +
-            ' | <b>Telefone:</b> ' + (ride.passenger?.phone || '-') +
-            '<br><b>Motorista:</b> ' + (ride.driver?.fullName || ride.driver?.name || 'Aguardando') +
-            ' | <b>Telefone:</b> ' + (ride.driver?.phone || '-') +
-            ' | <b>Placa:</b> ' + (ride.driver?.carPlate || ride.driver?.plate || '-') +
-          '</td>' +
-        '</tr>'
-      );
-    }).join('');
+    renderRides(rides);
   } catch (error) {
     console.error(error);
+
+    updateActiveRideCard(0);
 
     tbody.innerHTML =
       '<tr><td colspan="8">Erro ao carregar corridas ativas.</td></tr>';
@@ -892,9 +1065,8 @@ loadCurrentRide();
 loadRideStats();
 
 setInterval(function() {
-  loadCurrentRide();
   loadRideStats();
-}, 3000);
+}, 15000);
 </script>
 
 </body>
