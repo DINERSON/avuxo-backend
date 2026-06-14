@@ -6,30 +6,63 @@ import { memoryStore } from '../storage/memory.store';
 const AVUXO_FEE_PER_FINISHED_RIDE = 0.5;
 
 function rideKey(rideId: any) {
-  return String(rideId || '');
+  return String(rideId || '').trim();
+}
+
+function getRequestedRideId(req: any) {
+  return rideKey(
+    req.params?.rideId ||
+      req.body?.rideId ||
+      req.query?.rideId ||
+      req.body?.id ||
+      req.query?.id,
+  );
+}
+
+function sameRideId(a: any, b: any) {
+  return rideKey(a) !== '' && rideKey(a) === rideKey(b);
 }
 
 function getRide(req: any) {
-  const id =
-    req.params?.rideId ||
-    req.body?.rideId ||
-    req.query?.rideId;
+  const id = getRequestedRideId(req);
 
-  if (id && (memoryStore.activeRides as any)[rideKey(id)]) {
-    return (memoryStore.activeRides as any)[rideKey(id)];
+  if (id) {
+    const activeRide = (memoryStore.activeRides as any)?.[id];
+
+    if (activeRide) {
+      return activeRide;
+    }
+
+    if (
+      memoryStore.currentRide &&
+      sameRideId(memoryStore.currentRide.rideId || memoryStore.currentRide.id, id)
+    ) {
+      return memoryStore.currentRide;
+    }
+
+    return null;
   }
 
-  return memoryStore.currentRide;
+  return memoryStore.currentRide || null;
 }
 
 function saveRide(ride: any) {
   const id = rideKey(ride.rideId || ride.id);
 
-  (memoryStore.activeRides as any)[id] = ride;
+  if (!id) return;
 
+  ride.rideId = ride.rideId || id;
+  ride.id = ride.id || id;
+  ride.updatedAt = new Date().toISOString();
+
+  (memoryStore.activeRides as any)[id] = ride;
   memoryStore.currentRide = ride as any;
 
-  if (!memoryStore.ridesDatabase.some((r: any) => String(r.rideId || r.id) === id)) {
+  if (
+    !memoryStore.ridesDatabase.some(
+      (r: any) => String(r.rideId || r.id) === id,
+    )
+  ) {
     memoryStore.ridesDatabase.unshift(ride as any);
   }
 }
@@ -42,6 +75,14 @@ function removeAvailableRide(rideId: any) {
   );
 }
 
+function emitToRideRoom(io: Server, rideId: any, eventName: string, payload: any) {
+  const id = rideKey(rideId);
+
+  if (!id) return;
+
+  io.to(`ride-${id}`).emit(eventName, payload);
+}
+
 function emitRideUpdate(io: Server, ride: any, eventName = 'ride:update') {
   const id = rideKey(ride?.rideId || ride?.id);
 
@@ -51,16 +92,24 @@ function emitRideUpdate(io: Server, ride: any, eventName = 'ride:update') {
     ride,
   };
 
-  io.emit(eventName, payload);
-  io.emit('ride:update', payload);
-  io.emit('ride:updated', payload);
-  io.emit('ride:current', payload);
+  io.to('admin').emit(eventName, payload);
+  io.to('admins').emit(eventName, payload);
+
+  io.to('drivers').emit(eventName, payload);
+
+  if (eventName !== 'ride:update') {
+    io.to('drivers').emit('ride:update', payload);
+  }
+
+  if (eventName !== 'ride:updated') {
+    io.to('drivers').emit('ride:updated', payload);
+  }
 
   if (id) {
-    io.to(`ride-${id}`).emit(eventName, payload);
-    io.to(`ride-${id}`).emit('ride:update', payload);
-    io.to(`ride-${id}`).emit('ride:updated', payload);
-    io.to(`ride-${id}`).emit('ride:current', payload);
+    emitToRideRoom(io, id, eventName, payload);
+    emitToRideRoom(io, id, 'ride:update', payload);
+    emitToRideRoom(io, id, 'ride:updated', payload);
+    emitToRideRoom(io, id, 'ride:current', payload);
   }
 }
 
@@ -73,13 +122,34 @@ function emitRideCleared(io: Server, rideId?: any) {
     ride: null,
   };
 
-  io.emit('ride:update', payload);
-  io.emit('ride:current', payload);
+  io.to('admin').emit('ride:update', payload);
+  io.to('admins').emit('ride:update', payload);
 
   if (id) {
-    io.to(`ride-${id}`).emit('ride:update', payload);
-    io.to(`ride-${id}`).emit('ride:current', payload);
+    emitToRideRoom(io, id, 'ride:update', payload);
+    emitToRideRoom(io, id, 'ride:current', payload);
+    emitToRideRoom(io, id, 'ride:cleared', payload);
   }
+}
+
+function emitChatUpdate(io: Server, ride: any) {
+  const id = rideKey(ride?.rideId || ride?.id);
+
+  const payload = {
+    success: true,
+    rideId: id,
+    messages: ride?.chat || [],
+    chat: ride?.chat || [],
+  };
+
+  if (id) {
+    emitToRideRoom(io, id, 'chat:updated', payload);
+    emitToRideRoom(io, id, 'chat:update', payload);
+    emitToRideRoom(io, id, 'chat:message', payload);
+  }
+
+  io.to('admin').emit('chat:updated', payload);
+  io.to('admins').emit('chat:updated', payload);
 }
 
 function emitChatCleared(io: Server, rideId?: any) {
@@ -92,15 +162,21 @@ function emitChatCleared(io: Server, rideId?: any) {
     chat: [],
   };
 
-  io.emit('chat:updated', payload);
-
   if (id) {
-    io.to(`ride-${id}`).emit('chat:updated', payload);
+    emitToRideRoom(io, id, 'chat:updated', payload);
+    emitToRideRoom(io, id, 'chat:update', payload);
   }
+
+  io.to('admin').emit('chat:updated', payload);
+  io.to('admins').emit('chat:updated', payload);
 }
 
 function ensureStore() {
   const store = memoryStore as any;
+
+  if (!store.currentRide) {
+    store.currentRide = null;
+  }
 
   if (!store.activeRides) {
     store.activeRides = {};
@@ -147,9 +223,7 @@ function chargeDriverRideFee(ride: any) {
     'driver-avuxo';
 
   const driverName =
-    ride?.driver?.fullName ||
-    ride?.driver?.name ||
-    'Motorista AVUXO';
+    ride?.driver?.fullName || ride?.driver?.name || 'Motorista AVUXO';
 
   if (!store.driverWallets[driverId]) {
     store.driverWallets[driverId] = {
@@ -170,7 +244,7 @@ function chargeDriverRideFee(ride: any) {
     description: 'Desconto automático de R$ 0,50 por corrida finalizada',
     amount: -AVUXO_FEE_PER_FINISHED_RIDE,
     fee: AVUXO_FEE_PER_FINISHED_RIDE,
-    rideId: ride?.id || ride?.rideId || Date.now(),
+    rideId: ride?.rideId || ride?.id || Date.now(),
     driverId,
     driverName,
     createdAt: new Date().toISOString(),
@@ -201,16 +275,39 @@ function chargeDriverRideFee(ride: any) {
 export function registerRideRoutes(app: Express, io: Server) {
   ensureStore();
 
-  app.get('/ride/current', (_req, res) => {
-    res.json({
+  app.get('/ride/current', (req, res) => {
+    const ride = getRide(req);
+
+    return res.json({
       success: true,
-      ride: memoryStore.currentRide || null,
+      ride: ride || null,
+    });
+  });
+
+  app.get('/rides/active', (_req, res) => {
+    return res.json({
+      success: true,
+      rides: Object.values(memoryStore.activeRides || {}),
+    });
+  });
+
+  app.get('/ride/available', (_req, res) => {
+    return res.json({
+      success: true,
+      rides: memoryStore.availableRides || [],
+      ride: memoryStore.availableRides?.[0] || null,
+    });
+  });
+
+  app.get('/ride/history', (_req, res) => {
+    return res.json({
+      success: true,
+      rides: memoryStore.rideHistory || [],
     });
   });
 
   app.get('/ride/:rideId', (req, res) => {
-    const rideId = rideKey(req.params.rideId);
-    const ride = (memoryStore.activeRides as any)[rideId];
+    const ride = getRide(req);
 
     if (!ride) {
       return res.status(404).json({
@@ -222,28 +319,6 @@ export function registerRideRoutes(app: Express, io: Server) {
     return res.json({
       success: true,
       ride,
-    });
-  });
-
-  app.get('/rides/active', (_req, res) => {
-    res.json({
-      success: true,
-      rides: Object.values(memoryStore.activeRides || {}),
-    });
-  });
-
-  app.get('/ride/available', (_req, res) => {
-    res.json({
-      success: true,
-      rides: memoryStore.availableRides || [],
-      ride: memoryStore.availableRides?.[0] || null,
-    });
-  });
-
-  app.get('/ride/history', (_req, res) => {
-    res.json({
-      success: true,
-      rides: memoryStore.rideHistory || [],
     });
   });
 
@@ -259,7 +334,7 @@ export function registerRideRoutes(app: Express, io: Server) {
         transactions: [],
       };
 
-    res.json({
+    return res.json({
       success: true,
       wallet,
     });
@@ -307,7 +382,13 @@ export function registerRideRoutes(app: Express, io: Server) {
     store.driverWallets[driverId].transactions.unshift(transaction);
     store.walletTransactions.unshift(transaction);
 
-    io.emit('wallet:update', {
+    io.to('admin').emit('wallet:update', {
+      success: true,
+      wallet: store.driverWallets[driverId],
+      transaction,
+    });
+
+    io.to('admins').emit('wallet:update', {
       success: true,
       wallet: store.driverWallets[driverId],
       transaction,
@@ -324,7 +405,7 @@ export function registerRideRoutes(app: Express, io: Server) {
   app.get('/wallet/transactions', (_req, res) => {
     const store = ensureStore();
 
-    res.json({
+    return res.json({
       success: true,
       transactions: store.walletTransactions,
     });
@@ -332,10 +413,11 @@ export function registerRideRoutes(app: Express, io: Server) {
 
   app.post('/ride/request', (req, res) => {
     const now = Date.now();
+    const incomingRideId = rideKey(req.body.rideId || req.body.id || now);
 
     const ride = {
-      id: now,
-      rideId: now,
+      id: incomingRideId,
+      rideId: incomingRideId,
 
       originLat: Number(req.body.originLat || req.body.pickupLat || 0),
       originLng: Number(req.body.originLng || req.body.pickupLng || 0),
@@ -376,15 +458,16 @@ export function registerRideRoutes(app: Express, io: Server) {
       requestedAt: req.body.requestedAt || new Date().toISOString(),
 
       passenger: {
-        uid: req.body.passenger?.uid || '',
-        name: req.body.passenger?.name || 'Passageiro',
+        uid: req.body.passenger?.uid || req.body.passengerId || '',
+        name: req.body.passenger?.name || req.body.passengerName || 'Passageiro',
         fullName:
           req.body.passenger?.fullName ||
           req.body.passenger?.name ||
+          req.body.passengerName ||
           'Passageiro',
-        photo: req.body.passenger?.photo || '',
-        email: req.body.passenger?.email || '',
-        phone: req.body.passenger?.phone || '',
+        photo: req.body.passenger?.photo || req.body.passengerPhoto || '',
+        email: req.body.passenger?.email || req.body.passengerEmail || '',
+        phone: req.body.passenger?.phone || req.body.passengerPhone || '',
         rating: Number(req.body.passenger?.rating || 5),
       },
 
@@ -400,6 +483,8 @@ export function registerRideRoutes(app: Express, io: Server) {
 
     saveRide(ride);
 
+    removeAvailableRide(ride.rideId);
+
     memoryStore.availableRides.unshift(ride as any);
 
     io.to('drivers').emit('ride:available', {
@@ -413,11 +498,24 @@ export function registerRideRoutes(app: Express, io: Server) {
       rides: memoryStore.availableRides,
     });
 
+    io.to('admin').emit('ride:available', {
+      success: true,
+      rideId: ride.rideId,
+      ride,
+    });
+
+    io.to('admins').emit('ride:available', {
+      success: true,
+      rideId: ride.rideId,
+      ride,
+    });
+
     emitRideUpdate(io, ride, 'ride:requested');
 
-    res.json({
+    return res.json({
       success: true,
       message: 'Corrida solicitada com sucesso',
+      rideId: ride.rideId,
       ride,
     });
   });
@@ -448,44 +546,22 @@ export function registerRideRoutes(app: Express, io: Server) {
         req.body.carModel ||
         req.body.vehicleName ||
         'Veículo AVUXO',
-      car:
-        req.body.car ||
-        req.body.vehicle ||
-        req.body.carModel ||
-        'Veículo AVUXO',
+      car: req.body.car || req.body.vehicle || req.body.carModel || 'Veículo AVUXO',
       carBrand: req.body.carBrand || req.body.brand || '',
       carModel: req.body.carModel || req.body.model || '',
       carColor: req.body.carColor || req.body.color || '',
-      plate:
-        req.body.plate ||
-        req.body.carPlate ||
-        req.body.licensePlate ||
-        '',
-      carPlate:
-        req.body.carPlate ||
-        req.body.plate ||
-        req.body.licensePlate ||
-        '',
-      photo:
-        req.body.photo ||
-        req.body.driverPhoto ||
-        req.body.profilePhoto ||
-        '',
+      plate: req.body.plate || req.body.carPlate || req.body.licensePlate || '',
+      carPlate: req.body.carPlate || req.body.plate || req.body.licensePlate || '',
+      photo: req.body.photo || req.body.driverPhoto || req.body.profilePhoto || '',
       driverPhoto:
-        req.body.driverPhoto ||
-        req.body.photo ||
-        req.body.profilePhoto ||
-        '',
+        req.body.driverPhoto || req.body.photo || req.body.profilePhoto || '',
       vehiclePhoto:
         req.body.vehiclePhoto ||
         req.body.carPhoto ||
         req.body.vehicleImage ||
         '',
       carPhoto:
-        req.body.carPhoto ||
-        req.body.vehiclePhoto ||
-        req.body.vehicleImage ||
-        '',
+        req.body.carPhoto || req.body.vehiclePhoto || req.body.vehicleImage || '',
       rating: Number(req.body.rating || req.body.driverRating || 5),
       lat: Number(req.body.lat || req.body.latitude || 0),
       lng: Number(req.body.lng || req.body.longitude || 0),
@@ -493,6 +569,8 @@ export function registerRideRoutes(app: Express, io: Server) {
       eta: req.body.eta || 'Chegando em instantes',
       updatedAt: new Date().toISOString(),
     };
+
+    ride.driverId = ride.driver.driverId;
 
     saveRide(ride);
     removeAvailableRide(ride.rideId || ride.id);
@@ -504,9 +582,10 @@ export function registerRideRoutes(app: Express, io: Server) {
       rides: memoryStore.availableRides,
     });
 
-    res.json({
+    return res.json({
       success: true,
       message: 'Corrida aceita',
+      rideId: ride.rideId || ride.id,
       ride,
     });
   });
@@ -522,10 +601,7 @@ export function registerRideRoutes(app: Express, io: Server) {
     }
 
     const driverId =
-      req.body.driverId ||
-      req.body.id ||
-      req.body.driver?.id ||
-      'driver-avuxo';
+      req.body.driverId || req.body.id || req.body.driver?.id || 'driver-avuxo';
 
     if (!Array.isArray(ride.declinedDrivers)) {
       ride.declinedDrivers = [];
@@ -549,15 +625,15 @@ export function registerRideRoutes(app: Express, io: Server) {
 
     emitRideUpdate(io, ride, 'ride:declined');
 
-    res.json({
+    return res.json({
       success: true,
       message: 'Corrida recusada por este motorista',
+      rideId: ride.rideId || ride.id,
       ride,
     });
   });
 
-  app.post('/ride/arrived', (_req, res) => {
-    const req: any = _req;
+  app.post('/ride/arrived', (req, res) => {
     const ride = getRide(req) as any;
 
     if (!ride) {
@@ -574,15 +650,15 @@ export function registerRideRoutes(app: Express, io: Server) {
     saveRide(ride);
     emitRideUpdate(io, ride, 'ride:arrived');
 
-    res.json({
+    return res.json({
       success: true,
       message: 'Motorista chegou ao passageiro',
+      rideId: ride.rideId || ride.id,
       ride,
     });
   });
 
-  app.post('/ride/start', (_req, res) => {
-    const req: any = _req;
+  app.post('/ride/start', (req, res) => {
     const ride = getRide(req) as any;
 
     if (!ride) {
@@ -599,15 +675,15 @@ export function registerRideRoutes(app: Express, io: Server) {
     saveRide(ride);
     emitRideUpdate(io, ride, 'ride:started');
 
-    res.json({
+    return res.json({
       success: true,
       message: 'Corrida iniciada',
+      rideId: ride.rideId || ride.id,
       ride,
     });
   });
 
-  app.post('/ride/finish', (_req, res) => {
-    const req: any = _req;
+  app.post('/ride/finish', (req, res) => {
     const ride = getRide(req) as any;
 
     if (!ride) {
@@ -642,7 +718,13 @@ export function registerRideRoutes(app: Express, io: Server) {
 
     emitRideUpdate(io, ride, 'ride:finished');
 
-    io.emit('wallet:update', {
+    io.to('admin').emit('wallet:update', {
+      success: true,
+      wallet: walletResult.wallet,
+      transaction: walletResult.transaction,
+    });
+
+    io.to('admins').emit('wallet:update', {
       success: true,
       wallet: walletResult.wallet,
       transaction: walletResult.transaction,
@@ -654,9 +736,10 @@ export function registerRideRoutes(app: Express, io: Server) {
       emitRideCleared(io, ride.rideId || ride.id);
     }, 1200);
 
-    res.json({
+    return res.json({
       success: true,
       message: 'Corrida finalizada',
+      rideId: ride.rideId || ride.id,
       ride,
       wallet: walletResult.wallet,
       transaction: walletResult.transaction,
@@ -675,10 +758,8 @@ export function registerRideRoutes(app: Express, io: Server) {
 
     ride.status = 'cancelled';
     ride.cancelReason = req.body.reason || 'Cancelada';
-    ride.cancelledBy =
-      req.body.cancelledBy || req.body.canceledBy || 'system';
-    ride.canceledBy =
-      req.body.canceledBy || req.body.cancelledBy || 'system';
+    ride.cancelledBy = req.body.cancelledBy || req.body.canceledBy || 'system';
+    ride.canceledBy = req.body.canceledBy || req.body.cancelledBy || 'system';
     ride.cancelledAt = new Date().toISOString();
     ride.updatedAt = new Date().toISOString();
 
@@ -702,10 +783,84 @@ export function registerRideRoutes(app: Express, io: Server) {
       emitRideCleared(io, ride.rideId || ride.id);
     }, 1200);
 
-    res.json({
+    return res.json({
       success: true,
       message: 'Corrida cancelada',
+      rideId: ride.rideId || ride.id,
       ride,
+    });
+  });
+
+  app.get('/chat/current', (req, res) => {
+    const ride = getRide(req) as any;
+
+    if (!ride) {
+      return res.json({
+        success: true,
+        rideId: getRequestedRideId(req),
+        messages: [],
+        chat: [],
+      });
+    }
+
+    if (!Array.isArray(ride.chat)) {
+      ride.chat = [];
+    }
+
+    return res.json({
+      success: true,
+      rideId: ride.rideId || ride.id,
+      messages: ride.chat,
+      chat: ride.chat,
+    });
+  });
+
+  app.post('/chat/send', (req, res) => {
+    const ride = getRide(req) as any;
+
+    if (!ride) {
+      return res.status(404).json({
+        success: false,
+        message: 'Corrida não encontrada para enviar mensagem.',
+      });
+    }
+
+    if (!Array.isArray(ride.chat)) {
+      ride.chat = [];
+    }
+
+    const text = String(req.body.text || req.body.message || '').trim();
+
+    if (!text) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mensagem vazia.',
+      });
+    }
+
+    const message = {
+      id: Date.now(),
+      rideId: ride.rideId || ride.id,
+      sender: req.body.sender || req.body.from || req.body.role || 'system',
+      from: req.body.from || req.body.sender || req.body.role || 'system',
+      role: req.body.role || req.body.sender || req.body.from || 'system',
+      message: text,
+      text,
+      createdAt: req.body.createdAt || new Date().toISOString(),
+    };
+
+    ride.chat.push(message);
+    ride.updatedAt = new Date().toISOString();
+
+    saveRide(ride);
+    emitChatUpdate(io, ride);
+
+    return res.json({
+      success: true,
+      rideId: ride.rideId || ride.id,
+      message,
+      messages: ride.chat,
+      chat: ride.chat,
     });
   });
 
@@ -724,12 +879,17 @@ export function registerRideRoutes(app: Express, io: Server) {
 
     store.rideReviews.unshift(review);
 
-    io.emit('ride:reviewed', {
+    io.to('admin').emit('ride:reviewed', {
       success: true,
       review,
     });
 
-    res.json({
+    io.to('admins').emit('ride:reviewed', {
+      success: true,
+      review,
+    });
+
+    return res.json({
       success: true,
       message: 'Avaliação enviada com sucesso',
       review,
@@ -751,12 +911,17 @@ export function registerRideRoutes(app: Express, io: Server) {
 
     store.driverReviews.unshift(review);
 
-    io.emit('ride:driver-reviewed', {
+    io.to('admin').emit('ride:driver-reviewed', {
       success: true,
       review,
     });
 
-    res.json({
+    io.to('admins').emit('ride:driver-reviewed', {
+      success: true,
+      review,
+    });
+
+    return res.json({
       success: true,
       message: 'Avaliação do passageiro enviada com sucesso',
       review,

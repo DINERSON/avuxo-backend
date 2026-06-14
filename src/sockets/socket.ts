@@ -6,46 +6,106 @@ export let globalIO: Server;
 
 const chatMessagesByRide: Record<string, any[]> = {};
 
-function getRideById(rideId: any) {
-  const safeRideId = String(rideId || '');
+function rideKey(value: any) {
+  if (value && typeof value === 'object') {
+    return String(value.rideId || value.id || '').trim();
+  }
 
-  if (!safeRideId) return null;
+  return String(value || '').trim();
+}
+
+function getRideById(rideId: any) {
+  const id = rideKey(rideId);
+
+  if (!id) return null;
 
   return (
-    (memoryStore.activeRides as any)?.[safeRideId] ||
-    memoryStore.ridesDatabase.find(
-      (ride: any) => String(ride.rideId || ride.id) === safeRideId,
+    (memoryStore.activeRides as any)?.[id] ||
+    memoryStore.ridesDatabase?.find(
+      (ride: any) => String(ride.rideId || ride.id) === id,
     ) ||
     null
   );
 }
 
-function getChatList(rideId: any) {
-  const safeRideId = String(rideId || 'global');
+function getCurrentRide(rideId?: any) {
+  const id = rideKey(rideId);
 
-  if (!chatMessagesByRide[safeRideId]) {
-    chatMessagesByRide[safeRideId] = [];
+  if (id) {
+    return getRideById(id);
   }
 
-  return chatMessagesByRide[safeRideId];
+  return memoryStore.currentRide || null;
+}
+
+function getChatList(rideId: any) {
+  const id = rideKey(rideId) || 'global';
+
+  const ride = getRideById(id) as any;
+
+  if (ride) {
+    if (!Array.isArray(ride.chat)) {
+      ride.chat = [];
+    }
+
+    return ride.chat;
+  }
+
+  if (!chatMessagesByRide[id]) {
+    chatMessagesByRide[id] = [];
+  }
+
+  return chatMessagesByRide[id];
 }
 
 function emitChat(io: Server, rideId: any) {
-  const safeRideId = String(rideId || 'global');
-  const messages = getChatList(safeRideId);
+  const id = rideKey(rideId) || 'global';
+  const messages = getChatList(id);
 
-  io.to(`ride-${safeRideId}`).emit('chat:updated', {
+  const payload = {
     success: true,
-    rideId: safeRideId,
+    rideId: id,
     messages,
     chat: messages,
+  };
+
+  io.to(`ride-${id}`).emit('chat:updated', payload);
+  io.to(`ride-${id}`).emit('chat:update', payload);
+  io.to(`ride-${id}`).emit('chat:message', payload);
+
+  io.to('admin').emit('chat:updated', payload);
+  io.to('admins').emit('chat:updated', payload);
+}
+
+function joinRideRoom(socket: any, data: any) {
+  const rideId = rideKey(data);
+
+  if (!rideId) return null;
+
+  socket.join(`ride-${rideId}`);
+
+  return rideId;
+}
+
+function emitRideCurrent(socket: any, rideId?: any) {
+  const id = rideKey(rideId);
+  const ride = getCurrentRide(id);
+
+  socket.emit('ride:current', {
+    success: true,
+    rideId: id || ride?.rideId || ride?.id || null,
+    ride,
   });
+}
 
-  io.emit('chat:updated', {
+function emitChatCurrent(socket: any, rideId?: any) {
+  const id = rideKey(rideId) || 'global';
+
+  socket.emit('chat:updated', {
     success: true,
-    rideId: safeRideId,
-    messages,
-    chat: messages,
+    rideId: id,
+    messages: getChatList(id),
+    chat: getChatList(id),
   });
 }
 
@@ -60,86 +120,72 @@ export function registerSocket(io: Server) {
       message: 'AVUXO realtime conectado',
     });
 
-    socket.emit('ride:current', {
-      success: true,
-      ride: memoryStore.currentRide || null,
-    });
+    emitRideCurrent(socket);
 
     socket.on('join:admin', () => {
+      socket.join('admin');
+      socket.join('admins');
       socket.join('admin-room');
+
       console.log('👑 Admin conectado realtime');
     });
 
-    socket.on('join:ride', (rideId) => {
-      const safeRideId = String(rideId || '');
+    socket.on('admin:join', () => {
+      socket.join('admin');
+      socket.join('admins');
+      socket.join('admin-room');
 
-      if (!safeRideId) return;
-
-      socket.join(`ride-${safeRideId}`);
-
-      const ride = getRideById(safeRideId);
-
-      socket.emit('ride:current', {
-        success: true,
-        rideId: safeRideId,
-        ride,
-      });
-
-      socket.emit('chat:updated', {
-        success: true,
-        rideId: safeRideId,
-        messages: getChatList(safeRideId),
-        chat: getChatList(safeRideId),
-      });
-
-      console.log('🚖 Socket entrou na corrida:', safeRideId);
+      console.log('👑 Admin conectado realtime');
     });
 
-    socket.on('ride:join', (rideId) => {
-      const safeRideId = String(rideId || '');
+    socket.on('join:ride', (data) => {
+      const rideId = joinRideRoom(socket, data);
 
-      if (!safeRideId) return;
+      if (!rideId) return;
 
-      socket.join(`ride-${safeRideId}`);
+      emitRideCurrent(socket, rideId);
+      emitChatCurrent(socket, rideId);
 
-      const ride = getRideById(safeRideId);
-
-      socket.emit('ride:current', {
-        success: true,
-        rideId: safeRideId,
-        ride,
-      });
-
-      socket.emit('chat:updated', {
-        success: true,
-        rideId: safeRideId,
-        messages: getChatList(safeRideId),
-        chat: getChatList(safeRideId),
-      });
-
-      console.log('🚖 Socket entrou na corrida:', safeRideId);
+      console.log('🚖 Socket entrou na sala:', `ride-${rideId}`);
     });
 
-    socket.on('join:driver', (driverId) => {
-      const safeDriverId = driverId || 'driver-avuxo';
+    socket.on('ride:join', (data) => {
+      const rideId = joinRideRoom(socket, data);
+
+      if (!rideId) return;
+
+      emitRideCurrent(socket, rideId);
+      emitChatCurrent(socket, rideId);
+
+      console.log('🚖 Socket entrou na sala:', `ride-${rideId}`);
+    });
+
+    socket.on('join:driver', (data) => {
+      const driverId =
+        typeof data === 'object'
+          ? data?.driverId || data?.id || 'driver-avuxo'
+          : data || 'driver-avuxo';
 
       socket.join('drivers');
-      socket.join(`driver-${safeDriverId}`);
+      socket.join(`driver-${driverId}`);
 
-      console.log('🚗 Driver conectado:', safeDriverId);
+      console.log('🚗 Driver conectado:', driverId);
     });
 
-    socket.on('driver:join', (driverId) => {
-      const safeDriverId = driverId || 'driver-avuxo';
+    socket.on('driver:join', (data) => {
+      const driverId =
+        typeof data === 'object'
+          ? data?.driverId || data?.id || 'driver-avuxo'
+          : data || 'driver-avuxo';
 
       socket.join('drivers');
-      socket.join(`driver-${safeDriverId}`);
+      socket.join(`driver-${driverId}`);
 
-      console.log('🚗 Driver conectado:', safeDriverId);
+      console.log('🚗 Driver conectado:', driverId);
     });
 
     socket.on('driver:online', (data) => {
-      const driverId = data?.driverId || 'driver-avuxo';
+      const driverId = data?.driverId || data?.id || 'driver-avuxo';
 
       socket.join('drivers');
       socket.join(`driver-${driverId}`);
@@ -151,109 +197,117 @@ export function registerSocket(io: Server) {
         rides: memoryStore.availableRides || [],
       });
 
-      socket.emit('ride:current', {
-        success: true,
-        ride: memoryStore.currentRide || null,
-      });
+      emitRideCurrent(socket);
     });
 
     socket.on('driver:offline', (data) => {
-      const driverId = data?.driverId || 'driver-avuxo';
+      const driverId = data?.driverId || data?.id || 'driver-avuxo';
 
-      console.log('🔴 Driver offline:', data);
+      console.log('🔴 Driver offline:', driverId);
 
       socket.leave('drivers');
       socket.leave(`driver-${driverId}`);
     });
 
-    socket.on('join:passenger', (passengerId) => {
-      const safePassengerId = passengerId || 'passenger-avuxo';
+    socket.on('join:passenger', (data) => {
+      const passengerId =
+        typeof data === 'object'
+          ? data?.passengerId || data?.uid || data?.id || 'passenger-avuxo'
+          : data || 'passenger-avuxo';
 
       socket.join('passengers');
-      socket.join(`passenger-${safePassengerId}`);
+      socket.join(`passenger-${passengerId}`);
 
-      console.log('🧍 Passageiro conectado:', safePassengerId);
+      console.log('🧍 Passageiro conectado:', passengerId);
     });
 
-    socket.on('passenger:join', (passengerId) => {
-      const safePassengerId = passengerId || 'passenger-avuxo';
+    socket.on('passenger:join', (data) => {
+      const passengerId =
+        typeof data === 'object'
+          ? data?.passengerId || data?.uid || data?.id || 'passenger-avuxo'
+          : data || 'passenger-avuxo';
 
       socket.join('passengers');
-      socket.join(`passenger-${safePassengerId}`);
+      socket.join(`passenger-${passengerId}`);
 
-      console.log('🧍 Passageiro conectado:', safePassengerId);
+      console.log('🧍 Passageiro conectado:', passengerId);
 
-      socket.emit('ride:current', {
-        success: true,
-        ride: memoryStore.currentRide || null,
-      });
+      emitRideCurrent(socket);
     });
 
     socket.on('ride:get-current', (data) => {
-      const rideId = data?.rideId || data;
+      const rideId = rideKey(data);
 
       if (rideId) {
-        const ride = getRideById(rideId);
-
         socket.join(`ride-${rideId}`);
-
-        socket.emit('ride:current', {
-          success: true,
-          rideId,
-          ride,
-        });
-
-        return;
       }
 
-      socket.emit('ride:current', {
-        success: true,
-        ride: memoryStore.currentRide || null,
-      });
+      emitRideCurrent(socket, rideId);
     });
 
     socket.on('driver:location', (data) => {
-      const rideId = String(data?.rideId || data?.ride?.rideId || '');
-
-      const ride = rideId ? (getRideById(rideId) as any) : memoryStore.currentRide as any;
+      const rideId = rideKey(data?.rideId || data?.ride?.rideId);
+      const ride = getCurrentRide(rideId) as any;
 
       if (ride) {
         ride.driver = {
           ...(ride.driver || {}),
+          id: data?.driverId || ride.driver?.id || ride.driverId || 'driver-avuxo',
+          driverId:
+            data?.driverId ||
+            ride.driver?.driverId ||
+            ride.driverId ||
+            'driver-avuxo',
           lat: Number(data?.lat ?? data?.latitude ?? ride.driver?.lat ?? 0),
           lng: Number(data?.lng ?? data?.longitude ?? ride.driver?.lng ?? 0),
+          latitude: Number(data?.lat ?? data?.latitude ?? ride.driver?.lat ?? 0),
+          longitude: Number(data?.lng ?? data?.longitude ?? ride.driver?.lng ?? 0),
           bearing: Number(data?.bearing ?? ride.driver?.bearing ?? 0),
           updatedAt: new Date().toISOString(),
         };
 
         ride.updatedAt = new Date().toISOString();
+
+        if (ride.rideId || ride.id) {
+          (memoryStore.activeRides as any)[String(ride.rideId || ride.id)] = ride;
+        }
       }
+
+      const finalRideId = rideKey(rideId || ride?.rideId || ride?.id);
 
       const payload = {
         success: true,
-        rideId: rideId || ride?.rideId || ride?.id || null,
+        rideId: finalRideId || null,
+        driverId: data?.driverId || ride?.driverId || 'driver-avuxo',
+        lat: Number(data?.lat ?? data?.latitude ?? 0),
+        lng: Number(data?.lng ?? data?.longitude ?? 0),
+        latitude: Number(data?.lat ?? data?.latitude ?? 0),
+        longitude: Number(data?.lng ?? data?.longitude ?? 0),
+        bearing: Number(data?.bearing ?? 0),
+        updatedAt: new Date().toISOString(),
         driver: ride?.driver || data,
         ride,
       };
 
-      if (payload.rideId) {
-        io.to(`ride-${payload.rideId}`).emit('driver:location', payload);
-        io.to(`ride-${payload.rideId}`).emit('ride:tracking', payload);
+      if (finalRideId) {
+        io.to(`ride-${finalRideId}`).emit('driver:location', payload);
+        io.to(`ride-${finalRideId}`).emit('ride:tracking', payload);
+        io.to(`ride-${finalRideId}`).emit('ride:update', {
+          success: true,
+          rideId: finalRideId,
+          ride,
+        });
       }
-
-      io.emit('driver:location', payload);
-      io.emit('ride:tracking', payload);
     });
 
     socket.on('chat:get', (data) => {
-      const rideId = data?.rideId || data || 'global';
+      const rideId = rideKey(data) || 'global';
 
-      socket.emit('chat:updated', {
-        success: true,
-        rideId,
-        messages: getChatList(rideId),
-        chat: getChatList(rideId),
-      });
+      if (rideId !== 'global') {
+        socket.join(`ride-${rideId}`);
+      }
+
+      emitChatCurrent(socket, rideId);
     });
 
     socket.on('chat:send', (message) => {
@@ -261,13 +315,14 @@ export function registerSocket(io: Server) {
 
       if (!text) return;
 
-      const rideId = String(message?.rideId || 'global');
+      const rideId = rideKey(message?.rideId) || 'global';
+
+      if (rideId !== 'global') {
+        socket.join(`ride-${rideId}`);
+      }
 
       const sender = String(
-        message?.sender ??
-          message?.from ??
-          message?.role ??
-          'passenger',
+        message?.sender ?? message?.from ?? message?.role ?? 'passenger',
       );
 
       const msg = {
@@ -281,17 +336,15 @@ export function registerSocket(io: Server) {
         createdAt: message?.createdAt ?? new Date().toISOString(),
       };
 
-      getChatList(rideId).push(msg);
+      const chat = getChatList(rideId);
+      chat.push(msg);
 
       const ride = getRideById(rideId) as any;
 
       if (ride) {
-        if (!Array.isArray(ride.chat)) {
-          ride.chat = [];
-        }
-
-        ride.chat.push(msg);
+        ride.chat = chat;
         ride.updatedAt = new Date().toISOString();
+        (memoryStore.activeRides as any)[String(ride.rideId || ride.id)] = ride;
       }
 
       emitChat(io, rideId);
@@ -302,13 +355,14 @@ export function registerSocket(io: Server) {
 
       if (!text) return;
 
-      const rideId = String(message?.rideId || 'global');
+      const rideId = rideKey(message?.rideId) || 'global';
+
+      if (rideId !== 'global') {
+        socket.join(`ride-${rideId}`);
+      }
 
       const sender = String(
-        message?.sender ??
-          message?.from ??
-          message?.role ??
-          'passenger',
+        message?.sender ?? message?.from ?? message?.role ?? 'passenger',
       );
 
       const msg = {
@@ -322,24 +376,22 @@ export function registerSocket(io: Server) {
         createdAt: message?.createdAt ?? new Date().toISOString(),
       };
 
-      getChatList(rideId).push(msg);
+      const chat = getChatList(rideId);
+      chat.push(msg);
 
       const ride = getRideById(rideId) as any;
 
       if (ride) {
-        if (!Array.isArray(ride.chat)) {
-          ride.chat = [];
-        }
-
-        ride.chat.push(msg);
+        ride.chat = chat;
         ride.updatedAt = new Date().toISOString();
+        (memoryStore.activeRides as any)[String(ride.rideId || ride.id)] = ride;
       }
 
       emitChat(io, rideId);
     });
 
     socket.on('chat:clear', (data) => {
-      const rideId = String(data?.rideId || data || 'global');
+      const rideId = rideKey(data) || 'global';
 
       chatMessagesByRide[rideId] = [];
 
@@ -348,6 +400,7 @@ export function registerSocket(io: Server) {
       if (ride) {
         ride.chat = [];
         ride.updatedAt = new Date().toISOString();
+        (memoryStore.activeRides as any)[String(ride.rideId || ride.id)] = ride;
       }
 
       emitChat(io, rideId);
