@@ -3,39 +3,42 @@ import { memoryStore } from '../storage/memory.store';
 
 const driversDatabase = memoryStore.driversDatabase;
 
-const AVUXO_BLOCK_DEBT_LIMIT = 20;
-
-function getDriverDebt(driverId: any) {
+function getDriverWallet(driverId: any) {
   const store = memoryStore as any;
-  const wallet = store.driverWallets?.[String(driverId)];
 
-  if (!wallet) return 0;
+  store.driverWallets = store.driverWallets || {};
 
-  const balance = Number(wallet.balance || 0);
+  const id = String(driverId || '');
 
-  return balance < 0 ? Math.abs(balance) : 0;
+  if (!store.driverWallets[id]) {
+    store.driverWallets[id] = {
+      driverId: id,
+      balance: 0,
+      availableBalance: 0,
+      totalEarnings: 0,
+      totalFees: 0,
+      transactions: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
+  return store.driverWallets[id];
 }
 
-function applyFinancialBlockIfNeeded(driver: any) {
-  const debt = getDriverDebt(driver.id);
+function attachWallet(driver: any) {
+  const wallet = getDriverWallet(driver.id);
 
-  driver.walletDebt = debt;
-
-  if (debt >= AVUXO_BLOCK_DEBT_LIMIT) {
-    driver.status = 'blocked';
-    driver.approved = false;
-    driver.blocked = true;
-    driver.online = false;
-    driver.blockedReason =
-      `Bloqueado automaticamente por dívida AVUXO de R$ ${debt.toFixed(2)}`;
-  }
+  driver.walletBalance = Number(wallet.balance || 0);
+  driver.walletFees = Number(wallet.totalFees || 0);
+  driver.walletEarnings = Number(wallet.totalEarnings || 0);
 
   return driver;
 }
 
 export function listPendingDrivers(_req: Request, res: Response) {
   const pendingDrivers = driversDatabase
-    .map(applyFinancialBlockIfNeeded)
+    .map(attachWallet)
     .filter((driver) => driver.status === 'pending');
 
   return res.json({
@@ -46,7 +49,7 @@ export function listPendingDrivers(_req: Request, res: Response) {
 }
 
 export function listAllDrivers(_req: Request, res: Response) {
-  const drivers = driversDatabase.map(applyFinancialBlockIfNeeded);
+  const drivers = driversDatabase.map(attachWallet);
 
   return res.json({
     success: true,
@@ -69,30 +72,13 @@ export function approveDriver(req: Request, res: Response) {
     });
   }
 
-  const debt = getDriverDebt(driver.id);
-
-  if (debt >= AVUXO_BLOCK_DEBT_LIMIT) {
-    driver.status = 'blocked';
-    driver.approved = false;
-    driver.blocked = true;
-    driver.online = false;
-    driver.walletDebt = debt;
-    driver.blockedReason =
-      `Motorista possui dívida AVUXO de R$ ${debt.toFixed(2)}`;
-
-    return res.status(403).json({
-      success: false,
-      message: 'Motorista não pode ser aprovado com dívida em aberto.',
-      driver,
-    });
-  }
-
   driver.status = 'approved';
   driver.approved = true;
   driver.blocked = false;
   driver.online = false;
   driver.blockedReason = '';
-  driver.walletDebt = debt;
+
+  attachWallet(driver);
 
   return res.json({
     success: true,
@@ -120,7 +106,8 @@ export function rejectDriver(req: Request, res: Response) {
   driver.blocked = false;
   driver.online = false;
   driver.blockedReason = 'Cadastro rejeitado pelo administrador';
-  driver.walletDebt = getDriverDebt(driver.id);
+
+  attachWallet(driver);
 
   return res.json({
     success: true,
@@ -149,7 +136,8 @@ export function blockDriver(req: Request, res: Response) {
   driver.online = false;
   driver.blockedReason =
     req.body?.reason || 'Bloqueado pelo administrador';
-  driver.walletDebt = getDriverDebt(driver.id);
+
+  attachWallet(driver);
 
   return res.json({
     success: true,
@@ -172,30 +160,13 @@ export function unblockDriver(req: Request, res: Response) {
     });
   }
 
-  const debt = getDriverDebt(driver.id);
-
-  if (debt >= AVUXO_BLOCK_DEBT_LIMIT) {
-    driver.status = 'blocked';
-    driver.approved = false;
-    driver.blocked = true;
-    driver.online = false;
-    driver.walletDebt = debt;
-    driver.blockedReason =
-      `Não é possível desbloquear. Dívida AVUXO de R$ ${debt.toFixed(2)}`;
-
-    return res.status(403).json({
-      success: false,
-      message: 'Motorista precisa quitar a dívida antes do desbloqueio.',
-      driver,
-    });
-  }
-
   driver.status = 'approved';
   driver.approved = true;
   driver.blocked = false;
   driver.online = false;
   driver.blockedReason = '';
-  driver.walletDebt = debt;
+
+  attachWallet(driver);
 
   return res.json({
     success: true,

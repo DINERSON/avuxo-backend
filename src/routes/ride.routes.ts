@@ -1,4 +1,3 @@
-
 import { Express } from 'express';
 import { Server } from 'socket.io';
 
@@ -8,6 +7,24 @@ const AVUXO_FEE_PER_FINISHED_RIDE = 0.5;
 
 function rideKey(rideId: any) {
   return String(rideId || '').trim();
+}
+
+function money(value: any) {
+  const parsed = Number(value || 0);
+
+  if (!Number.isFinite(parsed)) {
+    return 0;
+  }
+
+  return Number(parsed.toFixed(2));
+}
+
+function now() {
+  return new Date().toISOString();
+}
+
+function transactionId(prefix: string) {
+  return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 99999)}`;
 }
 
 function getRequestedRideId(req: any) {
@@ -67,7 +84,7 @@ function saveRide(ride: any) {
 
   ride.rideId = id;
   ride.id = id;
-  ride.updatedAt = new Date().toISOString();
+  ride.updatedAt = now();
 
   (memoryStore.activeRides as any)[id] = ride;
 
@@ -198,8 +215,11 @@ function ensureStore() {
   store.currentRide = store.currentRide || null;
   store.activeRides = store.activeRides || {};
   store.availableRides = store.availableRides || [];
+
+  store.passengerWallets = store.passengerWallets || {};
   store.driverWallets = store.driverWallets || {};
   store.walletTransactions = store.walletTransactions || [];
+
   store.rideHistory = store.rideHistory || [];
   store.ridesDatabase = store.ridesDatabase || [];
   store.rideReviews = store.rideReviews || [];
@@ -208,65 +228,245 @@ function ensureStore() {
   return store;
 }
 
-function chargeDriverRideFee(ride: any) {
-  const store = ensureStore();
+function getPassengerId(ride: any) {
+  return String(
+    ride?.passenger?.uid ||
+      ride?.passenger?.id ||
+      ride?.passengerId ||
+      ride?.passenger?.phone ||
+      '',
+  ).trim();
+}
 
-  const driverId = String(
+function getDriverId(ride: any) {
+  return String(
     ride?.driver?.id ||
       ride?.driver?.driverId ||
       ride?.driverId ||
-      'driver-avuxo',
-  );
+      '',
+  ).trim();
+}
 
-  const driverName =
-    ride?.driver?.fullName || ride?.driver?.name || 'Motorista AVUXO';
+function createPassengerWallet(passengerId: string) {
+  const store = ensureStore();
+
+  if (!store.passengerWallets[passengerId]) {
+    store.passengerWallets[passengerId] = {
+      passengerId,
+      balance: 0,
+      transactions: [],
+      createdAt: now(),
+      updatedAt: now(),
+    };
+  }
+
+  return store.passengerWallets[passengerId];
+}
+
+function createDriverWallet(driverId: string, driverName = 'Motorista AVUXO') {
+  const store = ensureStore();
 
   if (!store.driverWallets[driverId]) {
     store.driverWallets[driverId] = {
       driverId,
       driverName,
       balance: 0,
+      availableBalance: 0,
+      totalEarnings: 0,
       totalFees: 0,
       transactions: [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: now(),
+      updatedAt: now(),
     };
   }
 
-  const transaction = {
-    id: Date.now(),
-    type: 'ride_fee',
-    title: 'Taxa AVUXO por corrida',
-    description: 'Desconto automático de R$ 0,50 por corrida finalizada',
-    amount: -AVUXO_FEE_PER_FINISHED_RIDE,
-    fee: AVUXO_FEE_PER_FINISHED_RIDE,
-    rideId: ride?.rideId || ride?.id || Date.now(),
+  if (!store.driverWallets[driverId].driverName) {
+    store.driverWallets[driverId].driverName = driverName;
+  }
+
+  return store.driverWallets[driverId];
+}
+
+function pushWalletTransaction(wallet: any, transaction: any) {
+  const store = ensureStore();
+
+  wallet.transactions = wallet.transactions || [];
+  wallet.transactions.unshift(transaction);
+  wallet.updatedAt = now();
+
+  store.walletTransactions.unshift(transaction);
+}
+
+function processFinishedRideWallet(ride: any) {
+  const store = ensureStore();
+
+  const rideId = rideKey(ride?.rideId || ride?.id);
+  const passengerId = getPassengerId(ride);
+  const driverId = getDriverId(ride);
+
+  const driverName =
+    ride?.driver?.fullName || ride?.driver?.name || 'Motorista AVUXO';
+
+  const rideAmount = money(ride?.total || ride?.fare || ride?.price || 0);
+  const avuxoFee = money(AVUXO_FEE_PER_FINISHED_RIDE);
+
+  if (!rideId) {
+    return {
+      success: false,
+      status: 400,
+      message: 'rideId inválido para finalizar pagamento.',
+    };
+  }
+
+  if (!passengerId) {
+    return {
+      success: false,
+      status: 400,
+      message: 'Passageiro inválido para finalizar pagamento.',
+    };
+  }
+
+  if (!driverId) {
+    return {
+      success: false,
+      status: 400,
+      message: 'Motorista inválido para finalizar pagamento.',
+    };
+  }
+
+  if (rideAmount <= 0) {
+    return {
+      success: false,
+      status: 400,
+      message: 'Valor da corrida inválido.',
+    };
+  }
+
+  const passengerWallet = createPassengerWallet(passengerId);
+  const driverWallet = createDriverWallet(driverId, driverName);
+
+  if (money(passengerWallet.balance) < rideAmount) {
+    return {
+      success: false,
+      status: 400,
+      message: 'Saldo insuficiente. Adicione saldo para finalizar a corrida.',
+      passengerWallet,
+    };
+  }
+
+  if (money(driverWallet.balance) < avuxoFee) {
+    return {
+      success: false,
+      status: 400,
+      message:
+        'Motorista sem saldo suficiente para pagar a taxa AVUXO. Adicione saldo na carteira.',
+      driverWallet,
+    };
+  }
+
+  const alreadyPaid = store.walletTransactions.some(
+    (item: any) =>
+      String(item.rideId || '') === rideId &&
+      String(item.type || '') === 'ride_payment',
+  );
+
+  if (alreadyPaid) {
+    return {
+      success: true,
+      alreadyProcessed: true,
+      passengerWallet,
+      driverWallet,
+      transactions: [],
+    };
+  }
+
+  passengerWallet.balance = money(passengerWallet.balance - rideAmount);
+
+  const passengerTransaction = {
+    id: transactionId('passenger-ride-payment'),
+    userId: passengerId,
+    userType: 'passenger',
+    type: 'ride_payment',
+    title: 'Pagamento de corrida',
+    amount: -rideAmount,
+    description: 'Pagamento da corrida com saldo AVUXO',
+    rideId,
+    passengerId,
     driverId,
-    driverName,
-    createdAt: new Date().toISOString(),
+    createdAt: now(),
   };
 
-  store.driverWallets[driverId].balance =
-    Number(store.driverWallets[driverId].balance || 0) -
-    AVUXO_FEE_PER_FINISHED_RIDE;
+  pushWalletTransaction(passengerWallet, passengerTransaction);
 
-  store.driverWallets[driverId].totalFees =
-    Number(store.driverWallets[driverId].totalFees || 0) +
-    AVUXO_FEE_PER_FINISHED_RIDE;
+  driverWallet.balance = money(driverWallet.balance + rideAmount);
+  driverWallet.availableBalance = money(
+    Number(driverWallet.availableBalance || 0) + rideAmount,
+  );
+  driverWallet.totalEarnings = money(
+    Number(driverWallet.totalEarnings || 0) + rideAmount,
+  );
 
-  store.driverWallets[driverId].updatedAt = new Date().toISOString();
-  store.driverWallets[driverId].transactions.unshift(transaction);
-  store.walletTransactions.unshift(transaction);
+  const earningTransaction = {
+    id: transactionId('driver-ride-earning'),
+    userId: driverId,
+    userType: 'driver',
+    type: 'ride_earning',
+    title: 'Ganho de corrida',
+    amount: rideAmount,
+    description: 'Valor recebido pela corrida finalizada',
+    rideId,
+    passengerId,
+    driverId,
+    createdAt: now(),
+  };
 
-  ride.avuxoFee = AVUXO_FEE_PER_FINISHED_RIDE;
-  ride.driverWalletBalanceAfterFee = store.driverWallets[driverId].balance;
-  ride.walletTransaction = transaction;
+  pushWalletTransaction(driverWallet, earningTransaction);
+
+  driverWallet.balance = money(driverWallet.balance - avuxoFee);
+  driverWallet.availableBalance = money(
+    Number(driverWallet.availableBalance || 0) - avuxoFee,
+  );
+  driverWallet.totalFees = money(Number(driverWallet.totalFees || 0) + avuxoFee);
+
+  const feeTransaction = {
+    id: transactionId('driver-avuxo-fee'),
+    userId: driverId,
+    userType: 'driver',
+    type: 'avuxo_fee',
+    title: 'Taxa AVUXO',
+    amount: -avuxoFee,
+    description: 'Taxa AVUXO descontada por corrida finalizada',
+    rideId,
+    passengerId,
+    driverId,
+    createdAt: now(),
+  };
+
+  pushWalletTransaction(driverWallet, feeTransaction);
+
+  ride.avuxoFee = avuxoFee;
+  ride.passengerPaidAmount = rideAmount;
+  ride.driverEarningAmount = rideAmount;
+  ride.driverWalletBalanceAfterFee = driverWallet.balance;
+  ride.walletTransaction = feeTransaction;
+  ride.walletTransactions = [
+    passengerTransaction,
+    earningTransaction,
+    feeTransaction,
+  ];
 
   return {
-    wallet: store.driverWallets[driverId],
-    transaction,
+    success: true,
+    passengerWallet,
+    driverWallet,
+    transactions: [
+      passengerTransaction,
+      earningTransaction,
+      feeTransaction,
+    ],
   };
 }
+
 export function registerRideRoutes(app: Express, io: Server) {
   ensureStore();
 
@@ -317,98 +517,45 @@ export function registerRideRoutes(app: Express, io: Server) {
     });
   });
 
-  app.get('/driver/wallet/:driverId', (req, res) => {
-    const store = ensureStore();
-    const driverId = String(req.params.driverId);
+  app.post('/ride/request', (req, res) => {
+    const nowMs = Date.now();
+    const incomingRideId = rideKey(req.body.rideId || req.body.id || nowMs);
 
-    const wallet =
-      store.driverWallets[driverId] || {
-        driverId,
-        balance: 0,
-        totalFees: 0,
-        transactions: [],
-      };
+    const passengerId = String(
+      req.body.passenger?.uid ||
+        req.body.passenger?.id ||
+        req.body.passengerId ||
+        req.body.passengerPhone ||
+        req.body.phone ||
+        '',
+    ).trim();
 
-    return res.json({
-      success: true,
-      wallet,
-    });
-  });
+    const price = money(req.body.price || req.body.fare || req.body.total || 0);
+    const passengerWallet = passengerId
+      ? createPassengerWallet(passengerId)
+      : null;
 
-  app.post('/driver/wallet/:driverId/payment', (req, res) => {
-    const store = ensureStore();
-
-    const driverId = String(req.params.driverId);
-    const amount = Number(req.body.amount || 0);
-
-    if (amount <= 0) {
+    if (!passengerId) {
       return res.status(400).json({
         success: false,
-        message: 'Valor do pagamento inválido.',
+        message: 'Passageiro inválido para solicitar corrida.',
       });
     }
 
-    if (!store.driverWallets[driverId]) {
-      store.driverWallets[driverId] = {
-        driverId,
-        balance: 0,
-        totalFees: 0,
-        transactions: [],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
+    if (price <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Valor da corrida inválido.',
+      });
     }
 
-    const transaction = {
-      id: Date.now(),
-      type: 'payment',
-      title: 'Pagamento de dívida AVUXO',
-      description: req.body.note || 'Pagamento PIX confirmado pelo admin',
-      amount,
-      method: req.body.method || 'PIX',
-      driverId,
-      createdAt: new Date().toISOString(),
-    };
-
-    store.driverWallets[driverId].balance =
-      Number(store.driverWallets[driverId].balance || 0) + amount;
-
-    store.driverWallets[driverId].updatedAt = new Date().toISOString();
-    store.driverWallets[driverId].transactions.unshift(transaction);
-    store.walletTransactions.unshift(transaction);
-
-    io.to('admin').emit('wallet:update', {
-      success: true,
-      wallet: store.driverWallets[driverId],
-      transaction,
-    });
-
-    io.to('admins').emit('wallet:update', {
-      success: true,
-      wallet: store.driverWallets[driverId],
-      transaction,
-    });
-
-    return res.json({
-      success: true,
-      message: 'Pagamento confirmado com sucesso.',
-      wallet: store.driverWallets[driverId],
-      transaction,
-    });
-  });
-
-  app.get('/wallet/transactions', (_req, res) => {
-    const store = ensureStore();
-
-    return res.json({
-      success: true,
-      transactions: store.walletTransactions,
-    });
-  });
-
-  app.post('/ride/request', (req, res) => {
-    const now = Date.now();
-    const incomingRideId = rideKey(req.body.rideId || req.body.id || now);
+    if (money(passengerWallet?.balance || 0) < price) {
+      return res.status(400).json({
+        success: false,
+        message: 'Saldo insuficiente. Adicione saldo para solicitar a corrida.',
+        wallet: passengerWallet,
+      });
+    }
 
     const ride = {
       id: incomingRideId,
@@ -438,22 +585,23 @@ export function registerRideRoutes(app: Express, io: Server) {
         req.body.destinationAddress ||
         'Destino AVUXO',
 
-      price: Number(req.body.price || req.body.fare || req.body.total || 0),
-      fare: Number(req.body.fare || req.body.price || req.body.total || 0),
-      total: Number(req.body.total || req.body.price || req.body.fare || 0),
+      price,
+      fare: money(req.body.fare || req.body.price || req.body.total || 0),
+      total: money(req.body.total || req.body.price || req.body.fare || 0),
 
       distanceKm: Number(req.body.distanceKm || 0),
       distanceText: req.body.distanceText || '',
       eta: req.body.eta || '',
 
       rideType: req.body.rideType || 'Carro',
-      paymentMethod: req.body.paymentMethod || 'PIX',
+      paymentMethod: req.body.paymentMethod || 'wallet',
       platform: req.body.platform || 'passenger_app',
 
-      requestedAt: req.body.requestedAt || new Date().toISOString(),
+      requestedAt: req.body.requestedAt || now(),
 
       passenger: {
-        uid: req.body.passenger?.uid || req.body.passengerId || '',
+        uid: passengerId,
+        id: passengerId,
         name:
           req.body.passenger?.name ||
           req.body.passengerName ||
@@ -469,12 +617,14 @@ export function registerRideRoutes(app: Express, io: Server) {
         rating: Number(req.body.passenger?.rating || 5),
       },
 
+      passengerId,
+
       declinedDrivers: [],
       status: 'pending',
       avuxoFee: 0,
 
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: now(),
+      updatedAt: now(),
 
       chat: [],
     };
@@ -513,8 +663,10 @@ export function registerRideRoutes(app: Express, io: Server) {
       message: 'Corrida solicitada com sucesso',
       rideId: ride.rideId,
       ride,
+      wallet: passengerWallet,
     });
   });
+
   app.post('/ride/accept', (req, res) => {
     const ride = getRide(req) as any;
 
@@ -533,13 +685,34 @@ export function registerRideRoutes(app: Express, io: Server) {
       });
     }
 
-    ride.status = 'accepted';
-    ride.acceptedAt = new Date().toISOString();
-    ride.updatedAt = new Date().toISOString();
-
     const driverId = String(
-      req.body.driverId || req.body.id || Date.now(),
+      req.body.driverId || req.body.id || req.body.phone || '',
+    ).trim();
+
+    if (!driverId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Motorista inválido para aceitar corrida.',
+      });
+    }
+
+    const driverWallet = createDriverWallet(
+      driverId,
+      req.body.fullName || req.body.name || 'Motorista AVUXO',
     );
+
+    if (money(driverWallet.balance) < AVUXO_FEE_PER_FINISHED_RIDE) {
+      return res.status(403).json({
+        success: false,
+        message:
+          'Adicione saldo na carteira para começar a receber corridas.',
+        wallet: driverWallet,
+      });
+    }
+
+    ride.status = 'accepted';
+    ride.acceptedAt = now();
+    ride.updatedAt = now();
 
     ride.driver = {
       id: driverId,
@@ -612,7 +785,7 @@ export function registerRideRoutes(app: Express, io: Server) {
       bearing: Number(req.body.bearing || 0),
       eta: req.body.eta || 'Chegando em instantes',
 
-      updatedAt: new Date().toISOString(),
+      updatedAt: now(),
     };
 
     ride.driverId = driverId;
@@ -669,7 +842,7 @@ export function registerRideRoutes(app: Express, io: Server) {
     }
 
     ride.status = 'pending';
-    ride.updatedAt = new Date().toISOString();
+    ride.updatedAt = now();
 
     saveRide(ride);
 
@@ -702,8 +875,8 @@ export function registerRideRoutes(app: Express, io: Server) {
     }
 
     ride.status = 'arriving';
-    ride.arrivedAt = new Date().toISOString();
-    ride.updatedAt = new Date().toISOString();
+    ride.arrivedAt = now();
+    ride.updatedAt = now();
 
     saveRide(ride);
     emitRideUpdate(io, ride, 'ride:arrived');
@@ -735,8 +908,8 @@ export function registerRideRoutes(app: Express, io: Server) {
     }
 
     ride.status = 'in_progress';
-    ride.startedAt = new Date().toISOString();
-    ride.updatedAt = new Date().toISOString();
+    ride.startedAt = now();
+    ride.updatedAt = now();
 
     saveRide(ride);
     emitRideUpdate(io, ride, 'ride:started');
@@ -767,11 +940,21 @@ export function registerRideRoutes(app: Express, io: Server) {
       });
     }
 
-    ride.status = 'finished';
-    ride.finishedAt = new Date().toISOString();
-    ride.updatedAt = new Date().toISOString();
+    const walletResult = processFinishedRideWallet(ride);
 
-    const walletResult = chargeDriverRideFee(ride);
+    if (!walletResult.success) {
+      return res.status(walletResult.status || 400).json({
+        success: false,
+        message: walletResult.message,
+        ride,
+        passengerWallet: walletResult.passengerWallet,
+        driverWallet: walletResult.driverWallet,
+      });
+    }
+
+    ride.status = 'finished';
+    ride.finishedAt = now();
+    ride.updatedAt = now();
 
     removeRideFromHistory(ride.rideId || ride.id);
     memoryStore.rideHistory.unshift(ride as any);
@@ -795,14 +978,24 @@ export function registerRideRoutes(app: Express, io: Server) {
 
     io.to('admin').emit('wallet:update', {
       success: true,
-      wallet: walletResult.wallet,
-      transaction: walletResult.transaction,
+      passengerWallet: walletResult.passengerWallet,
+      driverWallet: walletResult.driverWallet,
+      transactions: walletResult.transactions,
     });
 
     io.to('admins').emit('wallet:update', {
       success: true,
-      wallet: walletResult.wallet,
-      transaction: walletResult.transaction,
+      passengerWallet: walletResult.passengerWallet,
+      driverWallet: walletResult.driverWallet,
+      transactions: walletResult.transactions,
+    });
+
+    emitToRideRoom(io, ride.rideId || ride.id, 'wallet:update', {
+      success: true,
+      rideId: ride.rideId || ride.id,
+      passengerWallet: walletResult.passengerWallet,
+      driverWallet: walletResult.driverWallet,
+      transactions: walletResult.transactions,
     });
 
     emitChatCleared(io, ride.rideId || ride.id);
@@ -816,8 +1009,9 @@ export function registerRideRoutes(app: Express, io: Server) {
       message: 'Corrida finalizada',
       rideId: ride.rideId || ride.id,
       ride,
-      wallet: walletResult.wallet,
-      transaction: walletResult.transaction,
+      passengerWallet: walletResult.passengerWallet,
+      driverWallet: walletResult.driverWallet,
+      transactions: walletResult.transactions,
     });
   });
 
@@ -835,8 +1029,8 @@ export function registerRideRoutes(app: Express, io: Server) {
     ride.cancelReason = req.body.reason || 'Cancelada';
     ride.cancelledBy = req.body.cancelledBy || req.body.canceledBy || 'system';
     ride.canceledBy = req.body.canceledBy || req.body.cancelledBy || 'system';
-    ride.cancelledAt = new Date().toISOString();
-    ride.updatedAt = new Date().toISOString();
+    ride.cancelledAt = now();
+    ride.updatedAt = now();
 
     removeRideFromHistory(ride.rideId || ride.id);
     memoryStore.rideHistory.unshift(ride as any);
@@ -866,6 +1060,7 @@ export function registerRideRoutes(app: Express, io: Server) {
       ride,
     });
   });
+
   app.get('/chat/current', (req, res) => {
     const ride = getRide(req) as any;
 
@@ -923,11 +1118,11 @@ export function registerRideRoutes(app: Express, io: Server) {
       role: sender,
       message: text,
       text,
-      createdAt: req.body.createdAt || new Date().toISOString(),
+      createdAt: req.body.createdAt || now(),
     };
 
     ride.chat.push(message);
-    ride.updatedAt = new Date().toISOString();
+    ride.updatedAt = now();
 
     saveRide(ride);
     emitChatUpdate(io, ride);
@@ -953,7 +1148,7 @@ export function registerRideRoutes(app: Express, io: Server) {
       comment: req.body.comment || '',
       from: 'passenger',
       to: 'driver',
-      createdAt: new Date().toISOString(),
+      createdAt: now(),
     };
 
     store.rideReviews.unshift(review);
@@ -999,7 +1194,7 @@ export function registerRideRoutes(app: Express, io: Server) {
       comment: req.body.comment || '',
       from: 'driver',
       to: 'passenger',
-      createdAt: new Date().toISOString(),
+      createdAt: now(),
     };
 
     store.driverReviews.unshift(review);

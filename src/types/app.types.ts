@@ -81,13 +81,16 @@ export interface Ride {
   cancelledBy?: string;
   canceledBy?: string;
   cancelReason?: string;
-
   cancelledAt?: string;
 
   avuxoFee?: number;
+
+  passengerPaidAmount?: number;
+  driverEarningAmount?: number;
   driverWalletBalanceAfterFee?: number;
 
   walletTransaction?: any;
+  walletTransactions?: WalletTransaction[];
 
   declinedDrivers?: string[];
 }
@@ -106,20 +109,60 @@ export interface SavedAddress {
   createdAt: string;
 }
 
-export interface WalletTransaction {
-  id: number;
+export type WalletUserType =
+  | 'passenger'
+  | 'driver';
 
-  type: string;
+export type WalletTransactionType =
+  | 'credit'
+  | 'debit'
+  | 'ride_payment'
+  | 'ride_earning'
+  | 'avuxo_fee'
+  | 'payment';
+
+export interface WalletTransaction {
+  id: number | string;
+
+  userId: string;
+  userType: WalletUserType;
+
+  type: WalletTransactionType;
 
   title: string;
   amount: number;
 
-  description?: string;
-  fee?: number;
-  rideId?: string;
+  description: string;
+
+  rideId?: string | null;
   driverId?: string;
+  passengerId?: string;
 
   createdAt: string;
+}
+
+export interface PassengerWallet {
+  passengerId: string;
+  balance: number;
+  transactions: WalletTransaction[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DriverWallet {
+  driverId: string;
+  driverName?: string;
+
+  balance: number;
+  availableBalance: number;
+
+  totalEarnings: number;
+  totalFees: number;
+
+  transactions: WalletTransaction[];
+
+  createdAt: string;
+  updatedAt: string;
 }
 
 export type DriverStatus =
@@ -175,7 +218,9 @@ export interface DriverAccount {
 
   blockedReason: string;
 
-  walletDebt?: number;
+  walletBalance?: number;
+  walletFees?: number;
+  walletEarnings?: number;
 
   createdAt: string;
 }

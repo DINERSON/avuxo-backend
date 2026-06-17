@@ -3,6 +3,8 @@ import { Express } from 'express';
 import { memoryStore } from '../storage/memory.store';
 import { DriverAccount } from '../types/app.types';
 
+const AVUXO_FEE_PER_RIDE = 0.5;
+
 function normalizePhone(value: unknown) {
   return String(value || '').replace(/\D/g, '');
 }
@@ -22,8 +24,29 @@ function ensureDriverOnlineStore() {
 
   store.onlineDrivers = store.onlineDrivers || {};
   store.driverSockets = store.driverSockets || {};
+  store.driverWallets = store.driverWallets || {};
 
   return store;
+}
+
+function ensureDriverWallet(driverId: string, driverName = 'Motorista AVUXO') {
+  const store = ensureDriverOnlineStore();
+
+  if (!store.driverWallets[driverId]) {
+    store.driverWallets[driverId] = {
+      driverId,
+      driverName,
+      balance: 0,
+      availableBalance: 0,
+      totalEarnings: 0,
+      totalFees: 0,
+      transactions: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
+  return store.driverWallets[driverId];
 }
 
 export function registerDriverRoutes(app: Express) {
@@ -66,7 +89,7 @@ export function registerDriverRoutes(app: Express) {
     }
 
     const driver: DriverAccount = {
-      id: String(Date.now()),
+      id: phone,
 
       fullName: req.body.fullName || req.body.name || 'Motorista AVUXO',
       email: req.body.email || '',
@@ -109,10 +132,15 @@ export function registerDriverRoutes(app: Express) {
       blocked: false,
       blockedReason: '',
 
+      walletBalance: 0,
+      walletFees: 0,
+      walletEarnings: 0,
+
       createdAt: new Date().toISOString(),
     };
 
     memoryStore.driversDatabase.unshift(driver);
+    ensureDriverWallet(driver.id, driver.fullName);
 
     return res.json({
       success: true,
@@ -138,6 +166,12 @@ export function registerDriverRoutes(app: Express) {
       });
     }
 
+    const wallet = ensureDriverWallet(driver.id, driver.fullName);
+
+    driver.walletBalance = Number(wallet.balance || 0);
+    driver.walletFees = Number(wallet.totalFees || 0);
+    driver.walletEarnings = Number(wallet.totalEarnings || 0);
+
     return res.json({
       success: true,
       found: true,
@@ -146,6 +180,7 @@ export function registerDriverRoutes(app: Express) {
       blockedReason: driver.blockedReason || '',
       status: driver.status,
       driver,
+      wallet,
     });
   });
 
@@ -210,7 +245,7 @@ export function registerDriverRoutes(app: Express) {
   });
 
   app.post('/drivers/status', (req, res) => {
-    const id = String(req.body.id || req.body.driverId || '');
+    const id = String(req.body.id || req.body.driverId || req.body.phone || '');
     const online = Boolean(req.body.online);
 
     const driver = findDriverById(id);
@@ -227,7 +262,7 @@ export function registerDriverRoutes(app: Express) {
 
       return res.status(403).json({
         success: false,
-        message: 'Motorista bloqueado',
+        message: 'Motorista bloqueado pelo administrador.',
         driver,
       });
     }
@@ -237,8 +272,25 @@ export function registerDriverRoutes(app: Express) {
 
       return res.status(403).json({
         success: false,
-        message: 'Motorista ainda não aprovado',
+        message: 'Motorista ainda não aprovado.',
         driver,
+      });
+    }
+
+    const wallet = ensureDriverWallet(driver.id, driver.fullName);
+
+    driver.walletBalance = Number(wallet.balance || 0);
+    driver.walletFees = Number(wallet.totalFees || 0);
+    driver.walletEarnings = Number(wallet.totalEarnings || 0);
+
+    if (online && Number(wallet.balance || 0) < AVUXO_FEE_PER_RIDE) {
+      driver.online = false;
+
+      return res.status(403).json({
+        success: false,
+        message: 'Adicione saldo na carteira para começar a receber corridas.',
+        driver,
+        wallet,
       });
     }
 
@@ -250,6 +302,7 @@ export function registerDriverRoutes(app: Express) {
     return res.json({
       success: true,
       driver,
+      wallet,
     });
   });
 
@@ -263,25 +316,27 @@ export function registerDriverRoutes(app: Express) {
       });
     }
 
+    const wallet = ensureDriverWallet(driver.id, driver.fullName);
+
+    driver.walletBalance = Number(wallet.balance || 0);
+    driver.walletFees = Number(wallet.totalFees || 0);
+    driver.walletEarnings = Number(wallet.totalEarnings || 0);
+
     return res.json({
       success: true,
       driver,
+      wallet,
     });
   });
 
   app.get('/driver/wallet/:id', (req, res) => {
-    const store = memoryStore as any;
     const driverId = String(req.params.id);
 
-    store.driverWallets = store.driverWallets || {};
-
-    const wallet =
-      store.driverWallets[driverId] || {
-        driverId,
-        balance: 0,
-        totalFees: 0,
-        transactions: [],
-      };
+    const driver = findDriverById(driverId);
+    const wallet = ensureDriverWallet(
+      driverId,
+      driver?.fullName || 'Motorista AVUXO',
+    );
 
     return res.json({
       success: true,
