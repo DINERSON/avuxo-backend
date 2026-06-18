@@ -16,3 +16,4 @@ Thumbs.db
 .idea
 
 coverage
+/src/generated/prisma
